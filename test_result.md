@@ -179,15 +179,18 @@ backend:
 
   - task: "Access History Export"
     implemented: true
-    working: "NA"
+    working: true
     file: "/app/backend/server.py"
     stuck_count: 0
     priority: "medium"
-    needs_retesting: true
+    needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: "Export endpoint for PDF generation"
+      - working: true
+        agent: "testing"
+        comment: "Access history export tested successfully - returns structured JSON data with user email, export date, total accesses, and detailed log entries for PDF generation"
 
 frontend:
   - task: "Setup Flow (Email + PIN)"
