@@ -64,19 +64,28 @@ export default function Setup() {
 
     setIsLoading(true);
     try {
+      console.log('Creating user with email:', email.trim().toLowerCase());
+      console.log('API URL:', API_URL);
+      
       const response = await axios.post(`${API_URL}/api/users`, {
         email: email.trim().toLowerCase(),
         pin: pin,
       });
 
+      console.log('User created:', response.data);
+      
       const userId = response.data.id;
       await AsyncStorage.setItem('user_id', userId);
       await AsyncStorage.setItem('user_email', email.trim().toLowerCase());
+      
+      console.log('AsyncStorage set, navigating to home...');
 
-      // Navigate directly to home - Alert may not work in web preview
+      // Navigate directly to home
       router.replace('/home');
     } catch (error: any) {
       console.error('Setup error:', error);
+      console.error('Error response:', error.response?.data);
+      
       if (error.response?.data?.detail === 'User already exists') {
         Alert.alert(
           'Account Exists',
