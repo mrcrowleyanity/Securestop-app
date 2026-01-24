@@ -1,19 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
   Vibration,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as Location from 'expo-location';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -23,6 +24,16 @@ export default function Unlock() {
   const [attempts, setAttempts] = useState(0);
   const [isLocked, setIsLocked] = useState(false);
   const [lockTimer, setLockTimer] = useState(0);
+  const [permission, requestPermission] = useCameraPermissions();
+  const [showCamera, setShowCamera] = useState(false);
+  const cameraRef = useRef<CameraView>(null);
+
+  useEffect(() => {
+    // Request camera permission on mount
+    if (!permission?.granted) {
+      requestPermission();
+    }
+  }, []);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -39,6 +50,41 @@ export default function Unlock() {
     }
     return () => clearInterval(interval);
   }, [isLocked, lockTimer]);
+
+  const captureIntruderPhoto = async (): Promise<string | null> => {
+    try {
+      if (!permission?.granted) {
+        console.log('Camera permission not granted');
+        return null;
+      }
+
+      // Show camera briefly to capture
+      setShowCamera(true);
+      
+      // Wait for camera to initialize
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      if (cameraRef.current) {
+        const photo = await cameraRef.current.takePictureAsync({
+          quality: 0.5,
+          base64: true,
+        });
+        
+        setShowCamera(false);
+        
+        if (photo?.base64) {
+          return `data:image/jpeg;base64,${photo.base64}`;
+        }
+      }
+      
+      setShowCamera(false);
+      return null;
+    } catch (error) {
+      console.error('Failed to capture photo:', error);
+      setShowCamera(false);
+      return null;
+    }
+  };
 
   const handlePinSubmit = async () => {
     if (isLocked) return;
@@ -68,7 +114,7 @@ export default function Unlock() {
 
         router.replace('/home');
       } else {
-        handleFailedAttempt(userId, userEmail);
+        await handleFailedAttempt(userId, userEmail);
       }
     } catch (error) {
       console.error('Unlock error:', error);
@@ -84,7 +130,15 @@ export default function Unlock() {
     const newAttempts = attempts + 1;
     setAttempts(newAttempts);
 
-    // Send email alert on every failed attempt
+    // Capture photo of intruder
+    let intruderPhoto: string | null = null;
+    try {
+      intruderPhoto = await captureIntruderPhoto();
+    } catch (e) {
+      console.log('Could not capture photo');
+    }
+
+    // Send email alert with photo on every failed attempt
     if (userId && userEmail) {
       try {
         let location = null;
@@ -106,6 +160,7 @@ export default function Unlock() {
           email: userEmail,
           latitude: location?.latitude,
           longitude: location?.longitude,
+          intruder_photo: intruderPhoto,
         });
       } catch (e) {
         console.error('Failed to send alert:', e);
@@ -118,10 +173,10 @@ export default function Unlock() {
       setAttempts(0);
       Alert.alert(
         'Too Many Attempts',
-        'You have been locked out for 30 seconds. An alert has been sent to the account owner.'
+        'You have been locked out for 30 seconds. A security alert with photo has been sent to the account owner.'
       );
     } else {
-      Alert.alert('Incorrect PIN', `${3 - newAttempts} attempts remaining`);
+      Alert.alert('Incorrect PIN', `${3 - newAttempts} attempts remaining. Photo captured.`);
     }
   };
 
@@ -209,12 +264,29 @@ export default function Unlock() {
 
   return (
     <View style={styles.container}>
+      {/* Hidden camera for capturing intruder photos */}
+      {showCamera && (
+        <View style={styles.hiddenCamera}>
+          <CameraView
+            ref={cameraRef}
+            style={styles.camera}
+            facing="front"
+          />
+        </View>
+      )}
+
       <View style={styles.header}>
         <View style={styles.iconContainer}>
           <Ionicons name="lock-open" size={50} color="#007AFF" />
         </View>
         <Text style={styles.title}>Enter PIN to Exit</Text>
         <Text style={styles.subtitle}>Secure mode will be deactivated</Text>
+      </View>
+
+      {/* Security indicator */}
+      <View style={styles.securityBadge}>
+        <Ionicons name="camera" size={14} color="#FF9500" />
+        <Text style={styles.securityText}>Security camera active</Text>
       </View>
 
       {isLocked && (
@@ -268,9 +340,20 @@ const styles = StyleSheet.create({
     padding: 20,
     justifyContent: 'center',
   },
+  hiddenCamera: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
+    overflow: 'hidden',
+  },
+  camera: {
+    width: 100,
+    height: 100,
+  },
   header: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 20,
   },
   iconContainer: {
     width: 100,
@@ -290,6 +373,17 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 14,
     color: '#888',
+  },
+  securityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 20,
+  },
+  securityText: {
+    color: '#FF9500',
+    fontSize: 12,
   },
   lockoutBanner: {
     flexDirection: 'row',
