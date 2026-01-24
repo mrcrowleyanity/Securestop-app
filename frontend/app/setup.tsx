@@ -82,8 +82,10 @@ export default function Setup() {
       
       console.log('AsyncStorage set, navigating to home...');
 
-      // Navigate directly to home
-      router.replace('/home');
+      // Navigate directly to home - use setTimeout to ensure state is saved
+      setTimeout(() => {
+        router.replace('/home');
+      }, 100);
     } catch (error: any) {
       console.error('Setup error:', error);
       console.error('Error response:', error.response?.data);
