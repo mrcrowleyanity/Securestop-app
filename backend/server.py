@@ -393,23 +393,39 @@ async def log_failed_attempt(attempt: FailedAttemptCreate):
 
 @api_router.post("/failed-attempt/alert")
 async def send_failed_alert(data: EmailAlertRequest):
-    """Send email alert for failed attempt"""
-    # Log the attempt
-    attempt_dict = FailedAttempt(
-        user_id=data.user_id,
-        latitude=data.latitude,
-        longitude=data.longitude
-    ).dict()
+    """Send email alert for failed attempt with optional intruder photo"""
+    # Log the attempt with photo
+    attempt_dict = {
+        "id": str(uuid.uuid4()),
+        "user_id": data.user_id,
+        "timestamp": datetime.utcnow(),
+        "latitude": data.latitude,
+        "longitude": data.longitude,
+        "has_photo": data.intruder_photo is not None
+    }
+    
+    # Store photo separately if provided (to avoid large documents)
+    if data.intruder_photo:
+        photo_record = {
+            "id": str(uuid.uuid4()),
+            "attempt_id": attempt_dict["id"],
+            "user_id": data.user_id,
+            "timestamp": datetime.utcnow(),
+            "photo_base64": data.intruder_photo
+        }
+        await db.intruder_photos.insert_one(photo_record)
+    
     await db.failed_attempts.insert_one(attempt_dict)
     
-    # Send email
+    # Send email with photo
     success = await send_failed_attempt_email(
         data.email,
         data.latitude,
-        data.longitude
+        data.longitude,
+        data.intruder_photo
     )
     
-    return {"success": success, "message": "Alert sent" if success else "Failed to send alert"}
+    return {"success": success, "message": "Security alert with photo sent" if success else "Failed to send alert (check SendGrid API key)"}
 
 @api_router.get("/failed-attempts/{user_id}")
 async def get_failed_attempts(user_id: str):
