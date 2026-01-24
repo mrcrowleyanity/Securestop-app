@@ -100,6 +100,7 @@ class EmailAlertRequest(BaseModel):
     email: str
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    intruder_photo: Optional[str] = None  # Base64 encoded photo
 
 # ==================== Helper Functions ====================
 
@@ -113,8 +114,8 @@ def verify_pin(pin: str, hashed: str) -> bool:
     """Verify PIN against hash"""
     return hash_pin(pin) == hashed
 
-async def send_failed_attempt_email(email: str, latitude: float = None, longitude: float = None):
-    """Send email alert for failed PIN attempt"""
+async def send_failed_attempt_email(email: str, latitude: float = None, longitude: float = None, intruder_photo: str = None):
+    """Send email alert for failed PIN attempt with optional intruder photo"""
     try:
         sendgrid_key = os.environ.get('SENDGRID_API_KEY')
         if not sendgrid_key:
@@ -122,31 +123,78 @@ async def send_failed_attempt_email(email: str, latitude: float = None, longitud
             return False
         
         from sendgrid import SendGridAPIClient
-        from sendgrid.helpers.mail import Mail
+        from sendgrid.helpers.mail import Mail, Attachment, FileContent, FileName, FileType, Disposition
         
         location_info = ""
         if latitude and longitude:
             location_info = f"<p><strong>Location:</strong> Lat: {latitude}, Long: {longitude}</p>"
             location_info += f"<p><a href='https://maps.google.com/?q={latitude},{longitude}'>View on Google Maps</a></p>"
         
+        # Photo section for email body
+        photo_section = ""
+        if intruder_photo:
+            photo_section = """
+            <div style="margin: 20px 0; padding: 15px; background: #fff3cd; border-radius: 8px;">
+                <h3 style="color: #856404; margin: 0 0 10px 0;">📸 Intruder Photo Captured</h3>
+                <p style="color: #856404; margin: 0;">A photo was taken of the person attempting to access your device. See attached image.</p>
+            </div>
+            """
+        
         message = Mail(
             from_email=os.environ.get('SENDER_EMAIL', 'noreply@securefolder.app'),
             to_emails=email,
-            subject='⚠️ Secure Folder - Failed Access Attempt',
+            subject='🚨 SECURITY ALERT - Failed Access Attempt with Photo',
             html_content=f"""
             <html>
-            <body>
-                <h2>Failed PIN Attempt Detected</h2>
-                <p>Someone attempted to unlock your Secure Folder with an incorrect PIN.</p>
-                <p><strong>Time:</strong> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
-                {location_info}
-                <p>If this wasn't you, please ensure your phone is secure.</p>
-                <hr>
-                <p><em>Secure Folder - Your documents, protected.</em></p>
+            <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #dc3545; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+                    <h1 style="margin: 0;">🔒 Security Alert</h1>
+                </div>
+                <div style="padding: 20px; background: #f8f9fa; border: 1px solid #dee2e6;">
+                    <h2 style="color: #dc3545;">Failed PIN Attempt Detected</h2>
+                    <p>Someone attempted to unlock your Secure Folder with an incorrect PIN.</p>
+                    
+                    <div style="background: white; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                        <p style="margin: 5px 0;"><strong>⏰ Time:</strong> {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S UTC')}</p>
+                        {location_info}
+                    </div>
+                    
+                    {photo_section}
+                    
+                    <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-top: 20px;">
+                        <p style="color: #155724; margin: 0;"><strong>What to do:</strong></p>
+                        <ul style="color: #155724; margin: 10px 0;">
+                            <li>Check if your phone is still in your possession</li>
+                            <li>Consider changing your PIN if compromised</li>
+                            <li>Review your access history in the app</li>
+                        </ul>
+                    </div>
+                </div>
+                <div style="padding: 15px; text-align: center; color: #6c757d; font-size: 12px;">
+                    <p>Secure Folder - Your documents, protected.</p>
+                </div>
             </body>
             </html>
             """
         )
+        
+        # Attach the intruder photo if available
+        if intruder_photo:
+            try:
+                # Remove the data:image/jpeg;base64, prefix if present
+                if ',' in intruder_photo:
+                    photo_data = intruder_photo.split(',')[1]
+                else:
+                    photo_data = intruder_photo
+                
+                attachment = Attachment()
+                attachment.file_content = FileContent(photo_data)
+                attachment.file_name = FileName(f'intruder_{datetime.utcnow().strftime("%Y%m%d_%H%M%S")}.jpg')
+                attachment.file_type = FileType('image/jpeg')
+                attachment.disposition = Disposition('attachment')
+                message.add_attachment(attachment)
+            except Exception as e:
+                logger.error(f"Failed to attach photo: {e}")
         
         sg = SendGridAPIClient(sendgrid_key)
         response = sg.send(message)
