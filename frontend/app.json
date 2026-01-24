@@ -1,22 +1,40 @@
 {
   "expo": {
-    "name": "frontend",
-    "slug": "frontend",
+    "name": "Secure Folder",
+    "slug": "secure-folder",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "frontend",
-    "userInterfaceStyle": "automatic",
+    "scheme": "securefolder",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0f0f1a"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.securefolder.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Take photos of your documents",
+        "NSPhotoLibraryUsageDescription": "Upload documents from your gallery",
+        "NSLocationWhenInUseUsageDescription": "Log location during document access"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#000"
+        "backgroundColor": "#0f0f1a"
       },
-      "edgeToEdgeEnabled": true
+      "package": "com.securefolder.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -25,13 +43,18 @@
     },
     "plugins": [
       "expo-router",
+      "expo-secure-store",
       [
-        "expo-splash-screen",
+        "expo-location",
         {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#000"
+          "locationWhenInUsePermission": "Log location when officers access your documents"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Upload documents from your photo library",
+          "cameraPermission": "Take photos of your documents"
         }
       ]
     ],
