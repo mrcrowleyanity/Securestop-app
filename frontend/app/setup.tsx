@@ -73,9 +73,8 @@ export default function Setup() {
       await AsyncStorage.setItem('user_id', userId);
       await AsyncStorage.setItem('user_email', email.trim().toLowerCase());
 
-      Alert.alert('Success', 'Your Secure Folder is ready!', [
-        { text: 'OK', onPress: () => router.replace('/home') },
-      ]);
+      // Navigate directly to home - Alert may not work in web preview
+      router.replace('/home');
     } catch (error: any) {
       console.error('Setup error:', error);
       if (error.response?.data?.detail === 'User already exists') {
