@@ -19,6 +19,7 @@ import axios from 'axios';
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 export default function Setup() {
+  const [mode, setMode] = useState<'choice' | 'register' | 'login'>('choice');
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
   const [pin, setPin] = useState('');
@@ -29,6 +30,7 @@ export default function Setup() {
     return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
+  // ============ REGISTER FLOW ============
   const handleEmailSubmit = () => {
     if (!email.trim()) {
       Alert.alert('Error', 'Please enter your email');
@@ -77,8 +79,22 @@ export default function Setup() {
     } catch (error: any) {
       console.error('Setup error:', error);
       if (error.response?.data?.detail === 'User already exists') {
-        Alert.alert('Error', 'An account with this email already exists');
-        setStep(1);
+        Alert.alert(
+          'Account Exists',
+          'An account with this email already exists. Would you like to sign in instead?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { 
+              text: 'Sign In', 
+              onPress: () => {
+                setMode('login');
+                setStep(1);
+                setPin('');
+                setConfirmPin('');
+              }
+            },
+          ]
+        );
       } else {
         Alert.alert('Error', 'Failed to create account. Please try again.');
       }
@@ -87,6 +103,145 @@ export default function Setup() {
     }
   };
 
+  // ============ LOGIN FLOW ============
+  const handleLogin = async () => {
+    if (!email.trim()) {
+      Alert.alert('Error', 'Please enter your email');
+      return;
+    }
+    if (!validateEmail(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+    if (pin.length < 4) {
+      Alert.alert('Error', 'Please enter your PIN');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // First get user by email
+      const usersResponse = await axios.get(`${API_URL}/api/users/by-email/${encodeURIComponent(email.trim().toLowerCase())}`);
+      const userId = usersResponse.data.id;
+
+      // Verify PIN
+      const verifyResponse = await axios.post(`${API_URL}/api/users/verify-pin`, {
+        user_id: userId,
+        pin: pin,
+      });
+
+      if (verifyResponse.data.success) {
+        await AsyncStorage.setItem('user_id', userId);
+        await AsyncStorage.setItem('user_email', email.trim().toLowerCase());
+        router.replace('/home');
+      } else {
+        Alert.alert('Error', 'Invalid PIN. Please try again.');
+        setPin('');
+      }
+    } catch (error: any) {
+      console.error('Login error:', error);
+      if (error.response?.status === 404) {
+        Alert.alert('Error', 'No account found with this email. Please register first.');
+      } else {
+        Alert.alert('Error', 'Failed to sign in. Please try again.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // ============ CHOICE SCREEN ============
+  const renderChoice = () => (
+    <View style={styles.stepContainer}>
+      <View style={styles.iconContainer}>
+        <Ionicons name="shield-checkmark" size={60} color="#007AFF" />
+      </View>
+      <Text style={styles.stepTitle}>Welcome</Text>
+      <Text style={styles.stepDescription}>
+        Secure your documents for police encounters
+      </Text>
+
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={() => setMode('register')}
+      >
+        <Ionicons name="person-add" size={20} color="#fff" />
+        <Text style={styles.buttonText}>Create New Account</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={[styles.button, styles.secondaryButton]} 
+        onPress={() => setMode('login')}
+      >
+        <Ionicons name="log-in" size={20} color="#007AFF" />
+        <Text style={[styles.buttonText, styles.secondaryButtonText]}>Sign In</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // ============ LOGIN SCREEN ============
+  const renderLogin = () => (
+    <View style={styles.stepContainer}>
+      <View style={styles.iconContainer}>
+        <Ionicons name="lock-open" size={60} color="#007AFF" />
+      </View>
+      <Text style={styles.stepTitle}>Sign In</Text>
+      <Text style={styles.stepDescription}>
+        Enter your email and PIN to access your secure folder
+      </Text>
+
+      <TextInput
+        style={styles.input}
+        placeholder="your@email.com"
+        placeholderTextColor="#666"
+        value={email}
+        onChangeText={setEmail}
+        keyboardType="email-address"
+        autoCapitalize="none"
+        autoCorrect={false}
+      />
+
+      <TextInput
+        style={styles.input}
+        placeholder="Enter your PIN"
+        placeholderTextColor="#666"
+        value={pin}
+        onChangeText={setPin}
+        keyboardType="number-pad"
+        secureTextEntry
+        maxLength={8}
+      />
+
+      <TouchableOpacity
+        style={[styles.button, isLoading && styles.buttonDisabled]}
+        onPress={handleLogin}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <>
+            <Ionicons name="log-in" size={20} color="#fff" />
+            <Text style={styles.buttonText}>Sign In</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.backButton} 
+        onPress={() => {
+          setMode('choice');
+          setEmail('');
+          setPin('');
+        }}
+      >
+        <Ionicons name="arrow-back" size={20} color="#007AFF" />
+        <Text style={styles.backButtonText}>Back</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // ============ REGISTER SCREENS ============
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
@@ -109,6 +264,16 @@ export default function Setup() {
       <TouchableOpacity style={styles.button} onPress={handleEmailSubmit}>
         <Text style={styles.buttonText}>Continue</Text>
         <Ionicons name="arrow-forward" size={20} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity 
+        style={styles.backButton} 
+        onPress={() => {
+          setMode('choice');
+          setEmail('');
+        }}
+      >
+        <Ionicons name="arrow-back" size={20} color="#007AFF" />
+        <Text style={styles.backButtonText}>Back</Text>
       </TouchableOpacity>
     </View>
   );
@@ -196,21 +361,25 @@ export default function Setup() {
           <Text style={styles.headerTitle}>Secure Folder</Text>
         </View>
 
-        <View style={styles.progressContainer}>
-          {[1, 2, 3].map((s) => (
-            <View
-              key={s}
-              style={[
-                styles.progressDot,
-                s <= step && styles.progressDotActive,
-              ]}
-            />
-          ))}
-        </View>
+        {mode === 'register' && (
+          <View style={styles.progressContainer}>
+            {[1, 2, 3].map((s) => (
+              <View
+                key={s}
+                style={[
+                  styles.progressDot,
+                  s <= step && styles.progressDotActive,
+                ]}
+              />
+            ))}
+          </View>
+        )}
 
-        {step === 1 && renderStep1()}
-        {step === 2 && renderStep2()}
-        {step === 3 && renderStep3()}
+        {mode === 'choice' && renderChoice()}
+        {mode === 'login' && renderLogin()}
+        {mode === 'register' && step === 1 && renderStep1()}
+        {mode === 'register' && step === 2 && renderStep2()}
+        {mode === 'register' && step === 3 && renderStep3()}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -309,6 +478,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     width: '100%',
+    marginBottom: 12,
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    borderColor: '#007AFF',
   },
   buttonDisabled: {
     opacity: 0.6,
@@ -317,6 +492,9 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  secondaryButtonText: {
+    color: '#007AFF',
   },
   backButton: {
     flexDirection: 'row',
