@@ -17,7 +17,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.securefolder.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "Take photos of your documents",
+        "NSCameraUsageDescription": "Capture security photos on failed PIN attempts",
         "NSPhotoLibraryUsageDescription": "Upload documents from your gallery",
         "NSLocationWhenInUseUsageDescription": "Log location during document access"
       }
@@ -44,6 +44,12 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Capture security photos when someone attempts to unlock your device"
+        }
+      ],
       [
         "expo-location",
         {
