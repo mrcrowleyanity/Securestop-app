@@ -244,6 +244,20 @@ async def get_user(user_id: str):
         is_premium=user.get("is_premium", False)
     )
 
+@api_router.get("/users/by-email/{email}", response_model=UserResponse)
+async def get_user_by_email(email: str):
+    """Get user by email"""
+    user = await db.users.find_one({"email": email.lower()})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    return UserResponse(
+        id=user["id"],
+        email=user["email"],
+        created_at=user["created_at"],
+        is_premium=user.get("is_premium", False)
+    )
+
 @api_router.post("/users/verify-pin")
 async def verify_user_pin(data: PinVerify):
     """Verify user PIN"""
