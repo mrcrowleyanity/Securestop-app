@@ -22,6 +22,8 @@ const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 const DOC_TYPES = [
   { id: 'id', label: 'ID / Driver\'s License', icon: 'card' },
+  { id: 'vehicle_registration', label: 'Vehicle Registration', icon: 'car' },
+  { id: 'gun_registration', label: 'Gun Registration', icon: 'shield-checkmark' },
   { id: 'birth_certificate', label: 'Birth Certificate', icon: 'document' },
   { id: 'disability', label: 'Disability Paperwork', icon: 'medical' },
   { id: 'permit', label: 'Permits', icon: 'document-text' },
