@@ -94,6 +94,8 @@ export default function SecureMode() {
   const getDocTypeLabel = (type: string) => {
     const labels: { [key: string]: string } = {
       id: 'ID / License',
+      vehicle_registration: 'Vehicle Registration',
+      gun_registration: 'Gun Registration',
       birth_certificate: 'Birth Certificate',
       disability: 'Disability Paperwork',
       permit: 'Permits',
@@ -108,6 +110,8 @@ export default function SecureMode() {
   const getDocTypeIcon = (type: string) => {
     const icons: { [key: string]: string } = {
       id: 'card',
+      vehicle_registration: 'car',
+      gun_registration: 'shield-checkmark',
       birth_certificate: 'document',
       disability: 'medical',
       permit: 'document-text',
