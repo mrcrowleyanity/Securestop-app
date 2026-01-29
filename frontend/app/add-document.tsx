@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,17 +11,22 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import axios from 'axios';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+const { width, height } = Dimensions.get('window');
 
 const DOC_TYPES = [
-  { id: 'id', label: 'ID / Driver\'s License', icon: 'card' },
+  { id: 'id', label: "ID / Driver's License", icon: 'card' },
   { id: 'vehicle_registration', label: 'Vehicle Registration', icon: 'car' },
   { id: 'gun_registration', label: 'Gun Registration', icon: 'shield-checkmark' },
   { id: 'birth_certificate', label: 'Birth Certificate', icon: 'document' },
@@ -38,8 +43,58 @@ export default function AddDocument() {
   const [documentName, setDocumentName] = useState('');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [showOptionsModal, setShowOptionsModal] = useState(false);
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+  const cameraRef = useRef<CameraView>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
 
-  const pickImage = async () => {
+  const handleTypeSelect = (typeId: string) => {
+    setSelectedType(typeId);
+    const docType = DOC_TYPES.find(t => t.id === typeId);
+    if (docType) {
+      setDocumentName(docType.label);
+    }
+    setShowOptionsModal(true);
+  };
+
+  const handleCameraCapture = async () => {
+    if (!permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        Alert.alert('Permission Required', 'Camera permission is needed to scan documents');
+        return;
+      }
+    }
+    setShowOptionsModal(false);
+    setShowCameraModal(true);
+  };
+
+  const captureDocument = async () => {
+    if (!cameraRef.current || isCapturing) return;
+    
+    setIsCapturing(true);
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+        base64: true,
+      });
+
+      if (photo?.base64) {
+        setImageUri(`data:image/jpeg;base64,${photo.base64}`);
+        setShowCameraModal(false);
+      }
+    } catch (error) {
+      console.error('Capture error:', error);
+      Alert.alert('Error', 'Failed to capture photo');
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  const pickFromGallery = async () => {
+    setShowOptionsModal(false);
+    
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Please allow access to your photos');
@@ -61,24 +116,36 @@ export default function AddDocument() {
     }
   };
 
-  const takePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please allow access to your camera');
-      return;
-    }
+  const pickDocument = async () => {
+    setShowOptionsModal(false);
+    
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['image/*', 'application/pdf'],
+        copyToCacheDirectory: true,
+      });
 
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 0.8,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      if (asset.base64) {
-        setImageUri(`data:image/jpeg;base64,${asset.base64}`);
+      if (!result.canceled && result.assets[0]) {
+        const asset = result.assets[0];
+        // For images, we can display them
+        if (asset.mimeType?.startsWith('image/')) {
+          // Read the file and convert to base64
+          const response = await fetch(asset.uri);
+          const blob = await response.blob();
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64 = reader.result as string;
+            setImageUri(base64);
+          };
+          reader.readAsDataURL(blob);
+        } else {
+          Alert.alert('PDF Selected', 'PDF documents will be stored. For best results, use an image.');
+          // For PDFs, we could store the URI or show a placeholder
+        }
       }
+    } catch (error) {
+      console.error('Document picker error:', error);
+      Alert.alert('Error', 'Failed to select document');
     }
   };
 
@@ -99,7 +166,7 @@ export default function AddDocument() {
     setIsLoading(true);
     try {
       const userId = await AsyncStorage.getItem('user_id');
-      
+
       await axios.post(`${API_URL}/api/documents`, {
         user_id: userId,
         doc_type: selectedType,
@@ -118,6 +185,153 @@ export default function AddDocument() {
     }
   };
 
+  // Camera Scanner Modal
+  const renderCameraModal = () => (
+    <Modal
+      visible={showCameraModal}
+      animationType="slide"
+      onRequestClose={() => setShowCameraModal(false)}
+    >
+      <View style={styles.cameraContainer}>
+        <CameraView
+          ref={cameraRef}
+          style={styles.camera}
+          facing="back"
+        >
+          {/* Header */}
+          <View style={styles.cameraHeader}>
+            <TouchableOpacity
+              style={styles.cameraCloseBtn}
+              onPress={() => setShowCameraModal(false)}
+            >
+              <Ionicons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+            <Text style={styles.cameraTitle}>Scan Document</Text>
+            <View style={{ width: 44 }} />
+          </View>
+
+          {/* Document Frame Guide */}
+          <View style={styles.frameContainer}>
+            <View style={styles.frameOverlay}>
+              {/* Top overlay */}
+              <View style={styles.overlayTop} />
+              
+              {/* Middle section with frame */}
+              <View style={styles.overlayMiddle}>
+                <View style={styles.overlaySide} />
+                <View style={styles.documentFrame}>
+                  {/* Corner guides */}
+                  <View style={[styles.corner, styles.cornerTopLeft]} />
+                  <View style={[styles.corner, styles.cornerTopRight]} />
+                  <View style={[styles.corner, styles.cornerBottomLeft]} />
+                  <View style={[styles.corner, styles.cornerBottomRight]} />
+                  
+                  {/* Center crosshair */}
+                  <View style={styles.crosshairH} />
+                  <View style={styles.crosshairV} />
+                </View>
+                <View style={styles.overlaySide} />
+              </View>
+              
+              {/* Bottom overlay */}
+              <View style={styles.overlayBottom} />
+            </View>
+          </View>
+
+          {/* Instructions */}
+          <View style={styles.instructionsContainer}>
+            <View style={styles.instructionsBg}>
+              <Ionicons name="scan" size={20} color="#fff" />
+              <Text style={styles.instructionsText}>
+                Align document within the frame
+              </Text>
+            </View>
+          </View>
+
+          {/* Capture Button */}
+          <View style={styles.captureContainer}>
+            <TouchableOpacity
+              style={[styles.captureBtn, isCapturing && styles.captureBtnDisabled]}
+              onPress={captureDocument}
+              disabled={isCapturing}
+            >
+              {isCapturing ? (
+                <ActivityIndicator color="#007AFF" size="large" />
+              ) : (
+                <View style={styles.captureBtnInner} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </CameraView>
+      </View>
+    </Modal>
+  );
+
+  // Options Modal
+  const renderOptionsModal = () => (
+    <Modal
+      visible={showOptionsModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowOptionsModal(false)}
+    >
+      <TouchableOpacity
+        style={styles.modalOverlay}
+        activeOpacity={1}
+        onPress={() => setShowOptionsModal(false)}
+      >
+        <View style={styles.optionsModal}>
+          <View style={styles.optionsHeader}>
+            <Text style={styles.optionsTitle}>Add Document</Text>
+            <Text style={styles.optionsSubtitle}>
+              {DOC_TYPES.find(t => t.id === selectedType)?.label}
+            </Text>
+          </View>
+
+          <TouchableOpacity style={styles.optionItem} onPress={handleCameraCapture}>
+            <View style={[styles.optionIcon, { backgroundColor: 'rgba(0, 122, 255, 0.1)' }]}>
+              <Ionicons name="camera" size={28} color="#007AFF" />
+            </View>
+            <View style={styles.optionContent}>
+              <Text style={styles.optionLabel}>Scan with Camera</Text>
+              <Text style={styles.optionDesc}>Use document scanner with guides</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.optionItem} onPress={pickFromGallery}>
+            <View style={[styles.optionIcon, { backgroundColor: 'rgba(52, 199, 89, 0.1)' }]}>
+              <Ionicons name="images" size={28} color="#34C759" />
+            </View>
+            <View style={styles.optionContent}>
+              <Text style={styles.optionLabel}>Choose from Photos</Text>
+              <Text style={styles.optionDesc}>Select image from gallery</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.optionItem} onPress={pickDocument}>
+            <View style={[styles.optionIcon, { backgroundColor: 'rgba(255, 149, 0, 0.1)' }]}>
+              <Ionicons name="document" size={28} color="#FF9500" />
+            </View>
+            <View style={styles.optionContent}>
+              <Text style={styles.optionLabel}>Select Document</Text>
+              <Text style={styles.optionDesc}>Choose from files</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#666" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => setShowOptionsModal(false)}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    </Modal>
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -125,7 +339,7 @@ export default function AddDocument() {
     >
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Document Type Selection */}
-        <Text style={styles.sectionTitle}>Document Type</Text>
+        <Text style={styles.sectionTitle}>Select Document Type</Text>
         <View style={styles.typeGrid}>
           {DOC_TYPES.map((type) => (
             <TouchableOpacity
@@ -134,7 +348,7 @@ export default function AddDocument() {
                 styles.typeCard,
                 selectedType === type.id && styles.typeCardSelected,
               ]}
-              onPress={() => setSelectedType(type.id)}
+              onPress={() => handleTypeSelect(type.id)}
             >
               <Ionicons
                 name={type.icon as any}
@@ -146,53 +360,79 @@ export default function AddDocument() {
                   styles.typeLabel,
                   selectedType === type.id && styles.typeLabelSelected,
                 ]}
+                numberOfLines={2}
               >
                 {type.label}
               </Text>
+              {selectedType === type.id && (
+                <View style={styles.checkBadge}>
+                  <Ionicons name="checkmark" size={12} color="#fff" />
+                </View>
+              )}
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Document Name */}
-        <Text style={styles.sectionTitle}>Document Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="e.g., Driver's License, State ID"
-          placeholderTextColor="#666"
-          value={documentName}
-          onChangeText={setDocumentName}
-        />
+        {selectedType && (
+          <>
+            <Text style={styles.sectionTitle}>Document Name</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., Driver's License Front"
+              placeholderTextColor="#666"
+              value={documentName}
+              onChangeText={setDocumentName}
+            />
+          </>
+        )}
 
-        {/* Image Selection */}
-        <Text style={styles.sectionTitle}>Document Image</Text>
-        {imageUri ? (
-          <View style={styles.imagePreviewContainer}>
-            <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="contain" />
+        {/* Image Preview */}
+        {imageUri && (
+          <>
+            <Text style={styles.sectionTitle}>Document Preview</Text>
+            <View style={styles.imagePreviewContainer}>
+              <Image
+                source={{ uri: imageUri }}
+                style={styles.imagePreview}
+                resizeMode="contain"
+              />
+              <TouchableOpacity
+                style={styles.removeImageBtn}
+                onPress={() => setImageUri(null)}
+              >
+                <Ionicons name="close-circle" size={32} color="#FF3B30" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.retakeBtn}
+                onPress={() => setShowOptionsModal(true)}
+              >
+                <Ionicons name="refresh" size={16} color="#fff" />
+                <Text style={styles.retakeBtnText}>Retake</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        )}
+
+        {/* Add Image Button (if no image) */}
+        {selectedType && !imageUri && (
+          <>
+            <Text style={styles.sectionTitle}>Document Image</Text>
             <TouchableOpacity
-              style={styles.removeImageBtn}
-              onPress={() => setImageUri(null)}
+              style={styles.addImageButton}
+              onPress={() => setShowOptionsModal(true)}
             >
-              <Ionicons name="close-circle" size={32} color="#FF3B30" />
+              <Ionicons name="add-circle" size={48} color="#007AFF" />
+              <Text style={styles.addImageText}>Tap to add document</Text>
             </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={styles.imageOptions}>
-            <TouchableOpacity style={styles.imageButton} onPress={takePhoto}>
-              <Ionicons name="camera" size={32} color="#007AFF" />
-              <Text style={styles.imageButtonText}>Take Photo</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.imageButton} onPress={pickImage}>
-              <Ionicons name="images" size={32} color="#007AFF" />
-              <Text style={styles.imageButtonText}>Choose Photo</Text>
-            </TouchableOpacity>
-          </View>
+          </>
         )}
 
         {/* Tips */}
         <View style={styles.tipsContainer}>
           <Ionicons name="bulb" size={16} color="#FF9500" />
           <Text style={styles.tipsText}>
-            Tip: Make sure the document is well-lit and all text is readable
+            Tip: Ensure good lighting and that all text is clearly visible
           </Text>
         </View>
       </ScrollView>
@@ -200,9 +440,12 @@ export default function AddDocument() {
       {/* Save Button */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={[styles.saveButton, isLoading && styles.saveButtonDisabled]}
+          style={[
+            styles.saveButton,
+            (!selectedType || !imageUri || isLoading) && styles.saveButtonDisabled,
+          ]}
           onPress={handleSave}
-          disabled={isLoading}
+          disabled={!selectedType || !imageUri || isLoading}
         >
           {isLoading ? (
             <ActivityIndicator color="#fff" />
@@ -214,9 +457,15 @@ export default function AddDocument() {
           )}
         </TouchableOpacity>
       </View>
+
+      {renderOptionsModal()}
+      {renderCameraModal()}
     </KeyboardAvoidingView>
   );
 }
+
+const FRAME_WIDTH = width * 0.85;
+const FRAME_HEIGHT = FRAME_WIDTH * 0.63; // Standard card aspect ratio
 
 const styles = StyleSheet.create({
   container: {
@@ -248,6 +497,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
+    position: 'relative',
   },
   typeCardSelected: {
     borderColor: '#007AFF',
@@ -262,6 +512,17 @@ const styles = StyleSheet.create({
   typeLabelSelected: {
     color: '#007AFF',
   },
+  checkBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   input: {
     backgroundColor: '#1a1a2e',
     borderRadius: 12,
@@ -272,24 +533,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#333',
   },
-  imageOptions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  imageButton: {
-    flex: 1,
+  addImageButton: {
     backgroundColor: '#1a1a2e',
-    borderRadius: 12,
-    padding: 24,
+    borderRadius: 16,
+    padding: 40,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#333',
     borderStyle: 'dashed',
+    marginBottom: 16,
   },
-  imageButtonText: {
-    marginTop: 8,
-    fontSize: 14,
+  addImageText: {
+    marginTop: 12,
+    fontSize: 16,
     color: '#007AFF',
   },
   imagePreviewContainer: {
@@ -298,7 +554,7 @@ const styles = StyleSheet.create({
   },
   imagePreview: {
     width: '100%',
-    height: 300,
+    height: 250,
     borderRadius: 12,
     backgroundColor: '#1a1a2e',
   },
@@ -306,6 +562,23 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 8,
+  },
+  retakeBtn: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+  },
+  retakeBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
   },
   tipsContainer: {
     flexDirection: 'row',
@@ -338,11 +611,235 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   saveButtonDisabled: {
-    opacity: 0.6,
+    backgroundColor: '#333',
   },
   saveButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  // Options Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'flex-end',
+  },
+  optionsModal: {
+    backgroundColor: '#1a1a2e',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
+    paddingBottom: 40,
+  },
+  optionsHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  optionsTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  optionsSubtitle: {
+    fontSize: 14,
+    color: '#888',
+  },
+  optionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#2a2a3e',
+  },
+  optionIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  optionContent: {
+    flex: 1,
+  },
+  optionLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  optionDesc: {
+    fontSize: 13,
+    color: '#888',
+  },
+  cancelButton: {
+    marginTop: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: '#2a2a3e',
+    borderRadius: 12,
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#888',
+    fontWeight: '500',
+  },
+  // Camera Modal Styles
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  camera: {
+    flex: 1,
+  },
+  cameraHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  cameraCloseBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  cameraTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  frameContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  frameOverlay: {
+    width: '100%',
+    height: '100%',
+    position: 'absolute',
+  },
+  overlayTop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  overlayMiddle: {
+    flexDirection: 'row',
+    height: FRAME_HEIGHT,
+  },
+  overlaySide: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  overlayBottom: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+  },
+  documentFrame: {
+    width: FRAME_WIDTH,
+    height: FRAME_HEIGHT,
+    borderWidth: 2,
+    borderColor: '#007AFF',
+    backgroundColor: 'transparent',
+    position: 'relative',
+  },
+  corner: {
+    position: 'absolute',
+    width: 30,
+    height: 30,
+    borderColor: '#007AFF',
+  },
+  cornerTopLeft: {
+    top: -2,
+    left: -2,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+  },
+  cornerTopRight: {
+    top: -2,
+    right: -2,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+  },
+  cornerBottomLeft: {
+    bottom: -2,
+    left: -2,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+  },
+  cornerBottomRight: {
+    bottom: -2,
+    right: -2,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+  },
+  crosshairH: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 30,
+    height: 2,
+    backgroundColor: 'rgba(0, 122, 255, 0.5)',
+    marginLeft: -15,
+    marginTop: -1,
+  },
+  crosshairV: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    width: 2,
+    height: 30,
+    backgroundColor: 'rgba(0, 122, 255, 0.5)',
+    marginLeft: -1,
+    marginTop: -15,
+  },
+  instructionsContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  instructionsBg: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    gap: 8,
+  },
+  instructionsText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  captureContainer: {
+    alignItems: 'center',
+    paddingBottom: Platform.OS === 'ios' ? 50 : 30,
+  },
+  captureBtn: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 4,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+  },
+  captureBtnDisabled: {
+    opacity: 0.5,
+  },
+  captureBtnInner: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#007AFF',
   },
 });
