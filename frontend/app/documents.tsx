@@ -6,10 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   Image,
-  Alert,
   RefreshControl,
   Modal,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -46,6 +46,8 @@ export default function Documents() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
+  const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     loadDocuments();
@@ -66,30 +68,23 @@ export default function Documents() {
     }
   };
 
-  const handleDelete = (doc: Document) => {
-    Alert.alert(
-      'Delete Document',
-      `Are you sure you want to delete "${doc.name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await axios.delete(`${API_URL}/api/documents/${doc.id}`);
-              setDocuments(documents.filter((d) => d.id !== doc.id));
-              if (selectedDoc?.id === doc.id) {
-                setSelectedDoc(null);
-              }
-            } catch (error) {
-              console.error('Delete error:', error);
-              Alert.alert('Error', 'Failed to delete document');
-            }
-          },
-        },
-      ]
-    );
+  const confirmDelete = async () => {
+    if (!deleteDoc) return;
+    
+    setIsDeleting(true);
+    try {
+      await axios.delete(`${API_URL}/api/documents/${deleteDoc.id}`);
+      setDocuments(prev => prev.filter((d) => d.id !== deleteDoc.id));
+      
+      if (selectedDoc?.id === deleteDoc.id) {
+        setSelectedDoc(null);
+      }
+      setDeleteDoc(null);
+    } catch (error) {
+      console.error('Delete error:', error);
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Count documents per category
@@ -107,6 +102,48 @@ export default function Documents() {
     return DOC_CATEGORIES.find(c => c.id === categoryId);
   };
 
+  // Delete Confirmation Modal
+  const renderDeleteModal = () => (
+    <Modal
+      visible={deleteDoc !== null}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setDeleteDoc(null)}
+    >
+      <View style={styles.deleteModalOverlay}>
+        <View style={styles.deleteModalContent}>
+          <View style={styles.deleteModalIcon}>
+            <Ionicons name="trash" size={32} color="#FF3B30" />
+          </View>
+          <Text style={styles.deleteModalTitle}>Delete Document?</Text>
+          <Text style={styles.deleteModalText}>
+            Are you sure you want to delete "{deleteDoc?.name}"? This action cannot be undone.
+          </Text>
+          <View style={styles.deleteModalButtons}>
+            <TouchableOpacity
+              style={styles.deleteModalCancelBtn}
+              onPress={() => setDeleteDoc(null)}
+              disabled={isDeleting}
+            >
+              <Text style={styles.deleteModalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteModalConfirmBtn}
+              onPress={confirmDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.deleteModalConfirmText}>Delete</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   // Document Viewer Modal
   const renderDocumentViewer = () => (
     <Modal
@@ -120,7 +157,10 @@ export default function Documents() {
             <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.viewerTitle} numberOfLines={1}>{selectedDoc?.name}</Text>
-          <TouchableOpacity onPress={() => selectedDoc && handleDelete(selectedDoc)} style={styles.viewerDeleteBtn}>
+          <TouchableOpacity 
+            onPress={() => selectedDoc && setDeleteDoc(selectedDoc)} 
+            style={styles.viewerDeleteBtn}
+          >
             <Ionicons name="trash" size={24} color="#FF3B30" />
           </TouchableOpacity>
         </View>
@@ -186,32 +226,32 @@ export default function Documents() {
             ) : (
               <View style={styles.docsGrid}>
                 {categoryDocs.map((doc) => (
-                  <TouchableOpacity
-                    key={doc.id}
-                    style={styles.docCard}
-                    onPress={() => setSelectedDoc(doc)}
-                    onLongPress={() => handleDelete(doc)}
-                  >
-                    <View style={styles.docImageContainer}>
-                      <Image
-                        source={{ uri: doc.image_base64 }}
-                        style={styles.docImage}
-                        resizeMode="cover"
-                      />
-                    </View>
-                    <View style={styles.docCardInfo}>
-                      <Text style={styles.docCardName} numberOfLines={2}>{doc.name}</Text>
-                      <Text style={styles.docCardDate}>
-                        {new Date(doc.created_at).toLocaleDateString()}
-                      </Text>
-                    </View>
+                  <View key={doc.id} style={styles.docCard}>
+                    <TouchableOpacity
+                      style={styles.docCardTouchable}
+                      onPress={() => setSelectedDoc(doc)}
+                    >
+                      <View style={styles.docImageContainer}>
+                        <Image
+                          source={{ uri: doc.image_base64 }}
+                          style={styles.docImage}
+                          resizeMode="cover"
+                        />
+                      </View>
+                      <View style={styles.docCardInfo}>
+                        <Text style={styles.docCardName} numberOfLines={2}>{doc.name}</Text>
+                        <Text style={styles.docCardDate}>
+                          {new Date(doc.created_at).toLocaleDateString()}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
                     <TouchableOpacity
                       style={styles.docCardDelete}
-                      onPress={() => handleDelete(doc)}
+                      onPress={() => setDeleteDoc(doc)}
                     >
-                      <Ionicons name="trash-outline" size={18} color="#FF3B30" />
+                      <Ionicons name="trash-outline" size={22} color="#FF3B30" />
                     </TouchableOpacity>
-                  </TouchableOpacity>
+                  </View>
                 ))}
               </View>
             )}
@@ -232,6 +272,7 @@ export default function Documents() {
       >
         {isLoading ? (
           <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
             <Text style={styles.loadingText}>Loading documents...</Text>
           </View>
         ) : (
@@ -289,6 +330,7 @@ export default function Documents() {
 
       {renderCategoryModal()}
       {renderDocumentViewer()}
+      {renderDeleteModal()}
     </View>
   );
 }
@@ -310,6 +352,7 @@ const styles = StyleSheet.create({
   loadingText: {
     color: '#888',
     fontSize: 16,
+    marginTop: 12,
   },
   categoriesContainer: {
     padding: 20,
@@ -412,6 +455,73 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
+  // Delete Modal Styles
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  deleteModalContent: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  deleteModalIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  deleteModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  deleteModalText: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  deleteModalCancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#2a2a3e',
+    alignItems: 'center',
+  },
+  deleteModalCancelText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#888',
+  },
+  deleteModalConfirmBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#FF3B30',
+    alignItems: 'center',
+  },
+  deleteModalConfirmText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
   // Category Modal Styles
   categoryModalContainer: {
     flex: 1,
@@ -493,8 +603,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: '#1a1a2e',
     borderRadius: 12,
-    padding: 12,
+    overflow: 'hidden',
     alignItems: 'center',
+  },
+  docCardTouchable: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
   },
   docImageContainer: {
     width: 70,
@@ -522,7 +638,8 @@ const styles = StyleSheet.create({
     color: '#888',
   },
   docCardDelete: {
-    padding: 8,
+    padding: 16,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
   },
   // Document Viewer Styles
   viewerContainer: {
