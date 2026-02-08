@@ -90,15 +90,8 @@ export default function SecureMode() {
 
   const initSecureMode = async () => {
     // Keep screen awake (only works on native, not web)
-    // Note: Wake Lock API on web requires user gesture, so we skip it entirely on web
     if (Platform.OS === 'android' || Platform.OS === 'ios') {
-      try {
-        if (KeepAwake) {
-          await KeepAwake.activateKeepAwakeAsync();
-        }
-      } catch (error) {
-        console.log('KeepAwake not available:', error);
-      }
+      await activateKeepAwake();
       
       try {
         await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
