@@ -27,8 +27,12 @@ export default function OfficerLogin() {
 
   useEffect(() => {
     getLocation();
-    // Lock screen orientation
-    ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    // Lock screen orientation (may fail on web)
+    try {
+      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    } catch (error) {
+      console.log('Screen orientation lock not available on this platform');
+    }
   }, []);
 
   // Block back button - NO WAY TO EXIT without entering credentials
