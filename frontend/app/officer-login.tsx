@@ -9,14 +9,16 @@ import {
   Platform,
   ActivityIndicator,
   BackHandler,
+  SafeAreaView,
+  StatusBar,
+  Alert,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import * as ScreenOrientation from 'expo-screen-orientation';
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
 export default function OfficerLogin() {
   const [officerName, setOfficerName] = useState('');
@@ -24,29 +26,42 @@ export default function OfficerLogin() {
   const [isLoading, setIsLoading] = useState(false);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [error, setError] = useState('');
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    getLocation();
-    // Lock screen orientation (may fail on web)
-    try {
-      ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-    } catch (error) {
-      console.log('Screen orientation lock not available on this platform');
-    }
+    initializeScreen();
   }, []);
+
+  const initializeScreen = async () => {
+    try {
+      // Check if user is authenticated
+      const userId = await AsyncStorage.getItem('user_id');
+      if (!userId) {
+        console.error('No user_id found - redirecting to setup');
+        router.replace('/setup');
+        return;
+      }
+
+      // Get location
+      await getLocation();
+      setIsInitialized(true);
+    } catch (error) {
+      console.error('Initialization error:', error);
+      setIsInitialized(true);
+    }
+  };
 
   // Block back button - NO WAY TO EXIT without entering credentials
   useFocusEffect(
     React.useCallback(() => {
       const onBackPress = () => {
-        // Show error message instead of allowing back
         setError('Officer credentials required to proceed');
         setTimeout(() => setError(''), 2000);
         return true; // Prevent back
       };
 
-      BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
     }, [])
   );
 
@@ -54,147 +69,208 @@ export default function OfficerLogin() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({});
+        const loc = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
         setLocation({
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
         });
+        console.log('Location obtained:', loc.coords.latitude, loc.coords.longitude);
+      } else {
+        console.log('Location permission not granted');
       }
     } catch (error) {
       console.error('Location error:', error);
     }
   };
 
-  const handleSubmit = async () => {
+  const validateInputs = (): boolean => {
     if (!officerName.trim()) {
       setError('Officer name is required');
       setTimeout(() => setError(''), 2000);
-      return;
+      return false;
+    }
+    if (officerName.trim().length < 2) {
+      setError('Please enter a valid name');
+      setTimeout(() => setError(''), 2000);
+      return false;
     }
     if (!badgeNumber.trim()) {
       setError('Badge number is required');
       setTimeout(() => setError(''), 2000);
-      return;
+      return false;
     }
+    if (badgeNumber.trim().length < 2) {
+      setError('Please enter a valid badge number');
+      setTimeout(() => setError(''), 2000);
+      return false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async () => {
+    if (!validateInputs()) return;
 
     setIsLoading(true);
+    setError('');
+
     try {
-      // Store officer info for the secure mode session
-      await AsyncStorage.setItem('current_officer_name', officerName.trim());
-      await AsyncStorage.setItem('current_officer_badge', badgeNumber.trim());
-      await AsyncStorage.setItem('secure_mode_active', 'true');
-      if (location) {
-        await AsyncStorage.setItem('current_location', JSON.stringify(location));
+      // Verify user is still authenticated
+      const userId = await AsyncStorage.getItem('user_id');
+      if (!userId) {
+        setError('Session expired. Please restart the app.');
+        setIsLoading(false);
+        setTimeout(() => router.replace('/setup'), 1500);
+        return;
       }
 
-      console.log('Officer credentials saved, entering secure mode...');
-      
+      // Store officer info for the secure mode session
+      const dataToStore = [
+        ['current_officer_name', officerName.trim()],
+        ['current_officer_badge', badgeNumber.trim()],
+        ['secure_mode_active', 'true'],
+        ['secure_mode_start_time', new Date().toISOString()],
+      ];
+
+      if (location) {
+        dataToStore.push(['current_location', JSON.stringify(location)]);
+      }
+
+      // Use multiSet for atomic operation
+      await AsyncStorage.multiSet(dataToStore);
+
+      console.log('Officer credentials saved successfully');
+      console.log('- Officer:', officerName.trim());
+      console.log('- Badge:', badgeNumber.trim());
+      console.log('- Location:', location ? 'Yes' : 'No');
+
       // Navigate to secure mode
-      setTimeout(() => {
-        router.replace('/secure-mode');
-      }, 100);
+      router.replace('/secure-mode');
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error saving officer data:', error);
       setError('Failed to proceed. Please try again.');
       setIsLoading(false);
     }
   };
 
+  if (!isInitialized) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FF9500" />
+          <Text style={styles.loadingText}>Initializing...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      {/* Locked indicator */}
-      <View style={styles.lockedBanner}>
-        <Ionicons name="lock-closed" size={16} color="#FF3B30" />
-        <Text style={styles.lockedText}>SECURE MODE ACTIVATED - CREDENTIALS REQUIRED</Text>
-      </View>
-
-      <View style={styles.content}>
-        <View style={styles.header}>
-          <View style={styles.iconContainer}>
-            <Ionicons name="shield" size={60} color="#FF9500" />
-          </View>
-          <Text style={styles.title}>Officer Verification</Text>
-          <Text style={styles.subtitle}>
-            Enter your credentials to access documents
-          </Text>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#0f0f1a" />
+      
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        {/* Locked indicator */}
+        <View style={styles.lockedBanner}>
+          <Ionicons name="lock-closed" size={16} color="#FF3B30" />
+          <Text style={styles.lockedText}>SECURE MODE ACTIVATED - CREDENTIALS REQUIRED</Text>
         </View>
 
-        {error ? (
-          <View style={styles.errorBanner}>
-            <Ionicons name="warning" size={18} color="#FF3B30" />
-            <Text style={styles.errorText}>{error}</Text>
-          </View>
-        ) : null}
-
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <Ionicons name="person" size={20} color="#888" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Officer Full Name"
-              placeholderTextColor="#666"
-              value={officerName}
-              onChangeText={setOfficerName}
-              autoCapitalize="words"
-              editable={!isLoading}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Ionicons name="card" size={20} color="#888" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Badge Number"
-              placeholderTextColor="#666"
-              value={badgeNumber}
-              onChangeText={setBadgeNumber}
-              autoCapitalize="characters"
-              editable={!isLoading}
-            />
-          </View>
-
-          {location && (
-            <View style={styles.locationBadge}>
-              <Ionicons name="location" size={14} color="#34C759" />
-              <Text style={styles.locationText}>Location will be logged</Text>
+        <View style={styles.content}>
+          <View style={styles.header}>
+            <View style={styles.iconContainer}>
+              <Ionicons name="shield" size={60} color="#FF9500" />
             </View>
-          )}
-
-          <View style={styles.disclaimer}>
-            <Ionicons name="information-circle" size={16} color="#FF9500" />
-            <Text style={styles.disclaimerText}>
-              This access will be permanently logged with timestamp, location, and your credentials for legal documentation purposes.
+            <Text style={styles.title}>Officer Verification</Text>
+            <Text style={styles.subtitle}>
+              Enter your credentials to access documents
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={[styles.submitButton, isLoading && styles.buttonDisabled]}
-            onPress={handleSubmit}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <Text style={styles.submitButtonText}>Access Documents</Text>
-                <Ionicons name="arrow-forward" size={20} color="#fff" />
-              </>
-            )}
-          </TouchableOpacity>
+          {error ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="warning" size={18} color="#FF3B30" />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
 
-          {/* NO CANCEL BUTTON - Officers must enter credentials */}
-          <View style={styles.noExitNotice}>
-            <Ionicons name="lock-closed" size={14} color="#666" />
-            <Text style={styles.noExitText}>
-              Secure mode is active. Credentials required to proceed.
-            </Text>
+          <View style={styles.form}>
+            <View style={styles.inputContainer}>
+              <Ionicons name="person" size={20} color="#888" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Officer Full Name"
+                placeholderTextColor="#666"
+                value={officerName}
+                onChangeText={setOfficerName}
+                autoCapitalize="words"
+                editable={!isLoading}
+                returnKeyType="next"
+                testID="officer-name-input"
+              />
+            </View>
+
+            <View style={styles.inputContainer}>
+              <Ionicons name="card" size={20} color="#888" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Badge Number"
+                placeholderTextColor="#666"
+                value={badgeNumber}
+                onChangeText={setBadgeNumber}
+                autoCapitalize="characters"
+                editable={!isLoading}
+                returnKeyType="done"
+                onSubmitEditing={handleSubmit}
+                testID="badge-number-input"
+              />
+            </View>
+
+            {location && (
+              <View style={styles.locationBadge}>
+                <Ionicons name="location" size={14} color="#34C759" />
+                <Text style={styles.locationText}>Location will be logged</Text>
+              </View>
+            )}
+
+            <View style={styles.disclaimer}>
+              <Ionicons name="information-circle" size={16} color="#FF9500" />
+              <Text style={styles.disclaimerText}>
+                This access will be permanently logged with timestamp, location, and your credentials for legal documentation purposes.
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[styles.submitButton, isLoading && styles.buttonDisabled]}
+              onPress={handleSubmit}
+              disabled={isLoading}
+              activeOpacity={0.8}
+              testID="access-documents-btn"
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Text style={styles.submitButtonText}>Access Documents</Text>
+                  <Ionicons name="arrow-forward" size={20} color="#fff" />
+                </>
+              )}
+            </TouchableOpacity>
+
+            {/* NO CANCEL BUTTON - Officers must enter credentials */}
+            <View style={styles.noExitNotice}>
+              <Ionicons name="lock-closed" size={14} color="#666" />
+              <Text style={styles.noExitText}>
+                Secure mode is active. Credentials required to proceed.
+              </Text>
+            </View>
           </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
@@ -203,13 +279,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0f0f1a',
   },
+  keyboardView: {
+    flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#888',
+    marginTop: 12,
+    fontSize: 14,
+  },
   lockedBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 59, 48, 0.1)',
     paddingVertical: 12,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
     gap: 8,
   },
   lockedText: {
