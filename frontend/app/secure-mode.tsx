@@ -198,15 +198,28 @@ export default function SecureMode() {
 
   const openPinningSettings = async () => {
     try {
-      // Open Android security settings
       if (Platform.OS === 'android') {
-        // Try to open security settings directly
-        await Linking.sendIntent('android.settings.SECURITY_SETTINGS');
+        // Try different Android security settings intents
+        // Different manufacturers use different settings paths
+        const intents = [
+          'android.settings.SECURITY_SETTINGS',
+          'android.settings.LOCK_SCREEN_SETTINGS', 
+        ];
+        
+        for (const intent of intents) {
+          try {
+            await Linking.sendIntent(intent);
+            return;
+          } catch (e) {
+            continue;
+          }
+        }
+        // Final fallback
+        await Linking.openSettings();
       } else {
         await Linking.openSettings();
       }
     } catch (error) {
-      // Fallback to general settings
       await Linking.openSettings();
     }
   };
