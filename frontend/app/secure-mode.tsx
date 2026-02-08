@@ -567,8 +567,6 @@ const styles = StyleSheet.create({
   loadingContainer: {
     flex: 1,
     backgroundColor: '#0f0f1a',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   lockedHeader: {
     position: 'absolute',
