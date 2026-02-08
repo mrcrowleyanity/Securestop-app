@@ -11,7 +11,10 @@ import {
   Dimensions,
   ActivityIndicator,
   StatusBar,
+  Modal,
+  TextInput,
   Linking,
+  Alert,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -38,12 +41,18 @@ export default function SecureMode() {
   const [viewedDocs, setViewedDocs] = useState<string[]>([]);
   const [showRestrictedAlert, setShowRestrictedAlert] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [exitPin, setExitPin] = useState('');
+  const [pinError, setPinError] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [showPinningHelp, setShowPinningHelp] = useState(false);
 
   useEffect(() => {
     initSecureMode();
     
     return () => {
       KeepAwake.deactivateKeepAwake();
+      StatusBar.setHidden(false);
     };
   }, []);
 
@@ -56,6 +65,13 @@ export default function SecureMode() {
     
     // Hide status bar for more immersive lock
     StatusBar.setHidden(true);
+    
+    // Show pinning help on first load
+    const hasSeenPinningHelp = await AsyncStorage.getItem('has_seen_pinning_help');
+    if (!hasSeenPinningHelp && Platform.OS === 'android') {
+      setShowPinningHelp(true);
+      await AsyncStorage.setItem('has_seen_pinning_help', 'true');
+    }
     
     // Load data
     await loadData();
@@ -107,8 +123,80 @@ export default function SecureMode() {
     }
   };
 
-  const handleUnlock = () => {
-    router.push('/unlock');
+  const handleExitSecureMode = () => {
+    setShowExitModal(true);
+    setExitPin('');
+    setPinError('');
+  };
+
+  const verifyPinAndExit = async () => {
+    if (exitPin.length < 4) {
+      setPinError('Please enter your PIN');
+      return;
+    }
+
+    setIsVerifying(true);
+    setPinError('');
+
+    try {
+      const userId = await AsyncStorage.getItem('user_id');
+      const response = await axios.post(`${API_URL}/api/users/verify-pin`, {
+        user_id: userId,
+        pin: exitPin,
+      });
+
+      if (response.data.success) {
+        // Log the access before exiting
+        await logOfficerAccess();
+        
+        // Clear secure mode data
+        await AsyncStorage.removeItem('current_officer_name');
+        await AsyncStorage.removeItem('current_officer_badge');
+        await AsyncStorage.removeItem('current_location');
+        await AsyncStorage.removeItem('secure_mode_active');
+        
+        // Restore status bar
+        StatusBar.setHidden(false);
+        
+        // Navigate to home
+        setShowExitModal(false);
+        router.replace('/home');
+      } else {
+        setPinError('Incorrect PIN. Try again.');
+        setExitPin('');
+      }
+    } catch (error) {
+      console.error('PIN verification error:', error);
+      setPinError('Failed to verify PIN');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const logOfficerAccess = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('user_id');
+      const locationStr = await AsyncStorage.getItem('current_location');
+      const location = locationStr ? JSON.parse(locationStr) : null;
+
+      if (userId && officerName && badgeNumber) {
+        await axios.post(`${API_URL}/api/access-log`, {
+          user_id: userId,
+          officer_name: officerName,
+          badge_number: badgeNumber,
+          latitude: location?.latitude,
+          longitude: location?.longitude,
+          documents_viewed: viewedDocs,
+        });
+      }
+    } catch (error) {
+      console.error('Failed to log access:', error);
+    }
+  };
+
+  const openAndroidPinSettings = () => {
+    // Try to open Android security settings for screen pinning
+    Linking.openSettings();
   };
 
   const getDocTypeLabel = (type: string) => {
@@ -152,6 +240,110 @@ export default function SecureMode() {
     return acc;
   }, {} as { [key: string]: Document[] });
 
+  // Screen Pinning Help Modal
+  const renderPinningHelpModal = () => (
+    <Modal
+      visible={showPinningHelp}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowPinningHelp(false)}
+    >
+      <View style={styles.helpModalOverlay}>
+        <View style={styles.helpModalContent}>
+          <Ionicons name="phone-portrait" size={48} color="#007AFF" />
+          <Text style={styles.helpModalTitle}>Enable Screen Pinning</Text>
+          <Text style={styles.helpModalText}>
+            For maximum security, enable Android's Screen Pinning feature:
+          </Text>
+          <View style={styles.helpSteps}>
+            <Text style={styles.helpStep}>1. Go to Settings → Security</Text>
+            <Text style={styles.helpStep}>2. Find "Screen Pinning" or "App Pinning"</Text>
+            <Text style={styles.helpStep}>3. Turn it ON</Text>
+            <Text style={styles.helpStep}>4. Open Recent Apps and tap the pin icon</Text>
+          </View>
+          <Text style={styles.helpNote}>
+            This will prevent anyone from leaving this app without your PIN!
+          </Text>
+          <View style={styles.helpButtons}>
+            <TouchableOpacity
+              style={styles.helpOpenSettings}
+              onPress={openAndroidPinSettings}
+            >
+              <Ionicons name="settings" size={18} color="#fff" />
+              <Text style={styles.helpOpenSettingsText}>Open Settings</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.helpDismiss}
+              onPress={() => setShowPinningHelp(false)}
+            >
+              <Text style={styles.helpDismissText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
+  // Exit PIN Modal
+  const renderExitModal = () => (
+    <Modal
+      visible={showExitModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowExitModal(false)}
+    >
+      <View style={styles.exitModalOverlay}>
+        <View style={styles.exitModalContent}>
+          <View style={styles.exitModalHeader}>
+            <Ionicons name="lock-open" size={40} color="#007AFF" />
+            <Text style={styles.exitModalTitle}>Exit Secure Mode</Text>
+            <Text style={styles.exitModalSubtitle}>Enter device owner's PIN</Text>
+          </View>
+
+          {pinError ? (
+            <View style={styles.errorBanner}>
+              <Ionicons name="warning" size={16} color="#FF3B30" />
+              <Text style={styles.errorText}>{pinError}</Text>
+            </View>
+          ) : null}
+
+          <TextInput
+            style={styles.pinInput}
+            placeholder="Enter PIN"
+            placeholderTextColor="#666"
+            value={exitPin}
+            onChangeText={setExitPin}
+            keyboardType="number-pad"
+            secureTextEntry
+            maxLength={8}
+            autoFocus
+          />
+
+          <View style={styles.exitModalButtons}>
+            <TouchableOpacity
+              style={styles.cancelExitBtn}
+              onPress={() => setShowExitModal(false)}
+              disabled={isVerifying}
+            >
+              <Text style={styles.cancelExitBtnText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.confirmExitBtn, isVerifying && styles.btnDisabled]}
+              onPress={verifyPinAndExit}
+              disabled={isVerifying}
+            >
+              {isVerifying ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.confirmExitBtnText}>Unlock & Exit</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+
   // Loading state
   if (isLoading) {
     return (
@@ -172,14 +364,14 @@ export default function SecureMode() {
     return (
       <View style={styles.container}>
         <StatusBar hidden />
-        {/* Header with lock icon */}
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => setSelectedDoc(null)} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{selectedDoc.name}</Text>
-          <TouchableOpacity onPress={handleUnlock} style={styles.lockButton}>
-            <Ionicons name="lock-closed" size={20} color="#FF3B30" />
+          <TouchableOpacity onPress={handleExitSecureMode} style={styles.exitButton}>
+            <Ionicons name="lock-open" size={20} color="#007AFF" />
           </TouchableOpacity>
         </View>
 
@@ -196,9 +388,11 @@ export default function SecureMode() {
         {showRestrictedAlert && (
           <View style={styles.restrictedAlert}>
             <Ionicons name="lock-closed" size={24} color="#fff" />
-            <Text style={styles.restrictedText}>PIN Required to Exit Secure Mode</Text>
+            <Text style={styles.restrictedText}>PIN Required to Exit</Text>
           </View>
         )}
+
+        {renderExitModal()}
       </View>
     );
   }
@@ -212,10 +406,10 @@ export default function SecureMode() {
       <View style={styles.secureHeader}>
         <View style={styles.secureBadge}>
           <Ionicons name="shield-checkmark" size={20} color="#34C759" />
-          <Text style={styles.secureBadgeText}>SECURE MODE ACTIVE</Text>
+          <Text style={styles.secureBadgeText}>SECURE MODE</Text>
         </View>
-        <TouchableOpacity onPress={handleUnlock} style={styles.lockButton}>
-          <Ionicons name="lock-closed" size={20} color="#FF3B30" />
+        <TouchableOpacity onPress={handleExitSecureMode} style={styles.exitButton}>
+          <Ionicons name="lock-open" size={20} color="#007AFF" />
         </TouchableOpacity>
       </View>
 
@@ -280,20 +474,29 @@ export default function SecureMode() {
           ))
         )}
 
-        {/* Exit Instructions */}
-        <View style={styles.exitInstructions}>
-          <Ionicons name="information-circle" size={20} color="#FF9500" />
-          <Text style={styles.exitText}>
-            To exit secure mode, tap the lock icon and enter the device owner's PIN.
-          </Text>
-        </View>
+        {/* Screen Pinning Tip */}
+        {Platform.OS === 'android' && (
+          <TouchableOpacity style={styles.pinningTip} onPress={() => setShowPinningHelp(true)}>
+            <Ionicons name="phone-portrait" size={18} color="#FF9500" />
+            <Text style={styles.pinningTipText}>
+              Tap here to learn how to lock this app to the screen
+            </Text>
+            <Ionicons name="chevron-forward" size={16} color="#FF9500" />
+          </TouchableOpacity>
+        )}
       </ScrollView>
+
+      {/* Exit Secure Mode Button */}
+      <TouchableOpacity style={styles.exitSecureModeBtn} onPress={handleExitSecureMode}>
+        <Ionicons name="lock-open" size={20} color="#fff" />
+        <Text style={styles.exitSecureModeBtnText}>Exit Secure Mode</Text>
+      </TouchableOpacity>
 
       {/* Restricted Alert */}
       {showRestrictedAlert && (
         <View style={styles.restrictedAlert}>
           <Ionicons name="lock-closed" size={24} color="#fff" />
-          <Text style={styles.restrictedText}>PIN Required to Exit Secure Mode</Text>
+          <Text style={styles.restrictedText}>PIN Required to Exit</Text>
         </View>
       )}
 
@@ -302,6 +505,9 @@ export default function SecureMode() {
         <Ionicons name="lock-closed" size={16} color="#FF3B30" />
         <Text style={styles.bottomBarText}>Phone locked to Secure Folder</Text>
       </View>
+
+      {renderExitModal()}
+      {renderPinningHelpModal()}
     </View>
   );
 }
@@ -382,11 +588,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
-  lockButton: {
+  exitButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -510,21 +716,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#34C759',
   },
-  exitInstructions: {
+  pinningTip: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     backgroundColor: 'rgba(255, 149, 0, 0.1)',
     borderRadius: 12,
     padding: 16,
-    marginTop: 8,
-    marginBottom: 20,
+    marginBottom: 16,
     gap: 12,
   },
-  exitText: {
+  pinningTipText: {
     flex: 1,
     color: '#FF9500',
     fontSize: 13,
-    lineHeight: 18,
+  },
+  exitSecureModeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    marginHorizontal: 20,
+    marginBottom: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+  },
+  exitSecureModeBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
   docViewContainer: {
     flex: 1,
@@ -573,5 +793,164 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     fontSize: 13,
     fontWeight: '600',
+  },
+  // Exit Modal Styles
+  exitModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  exitModalContent: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+  },
+  exitModalHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  exitModalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 12,
+  },
+  exitModalSubtitle: {
+    fontSize: 14,
+    color: '#888',
+    marginTop: 4,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 16,
+    gap: 8,
+  },
+  errorText: {
+    color: '#FF3B30',
+    fontSize: 14,
+  },
+  pinInput: {
+    backgroundColor: '#0f0f1a',
+    borderRadius: 12,
+    padding: 16,
+    fontSize: 24,
+    color: '#fff',
+    textAlign: 'center',
+    letterSpacing: 8,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#333',
+  },
+  exitModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelExitBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#2a2a3e',
+    alignItems: 'center',
+  },
+  cancelExitBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#888',
+  },
+  confirmExitBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#007AFF',
+    alignItems: 'center',
+  },
+  btnDisabled: {
+    opacity: 0.6,
+  },
+  confirmExitBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  // Help Modal Styles
+  helpModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  helpModalContent: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+  },
+  helpModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  helpModalText: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  helpSteps: {
+    width: '100%',
+    backgroundColor: '#0f0f1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  helpStep: {
+    color: '#fff',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  helpNote: {
+    fontSize: 13,
+    color: '#34C759',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  helpButtons: {
+    width: '100%',
+    gap: 12,
+  },
+  helpOpenSettings: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    paddingVertical: 14,
+    borderRadius: 12,
+    gap: 8,
+  },
+  helpOpenSettingsText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  helpDismiss: {
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  helpDismissText: {
+    color: '#888',
+    fontSize: 16,
   },
 });
