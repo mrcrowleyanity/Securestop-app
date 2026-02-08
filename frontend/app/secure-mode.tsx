@@ -51,16 +51,16 @@ export default function SecureMode() {
     initSecureMode();
     
     return () => {
-      if (Platform.OS !== 'web') {
+      if (Platform.OS === 'android' || Platform.OS === 'ios') {
         try {
           KeepAwake.deactivateKeepAwake();
         } catch (error) {
-          // Ignore on web
+          // Ignore
         }
         try {
           StatusBar.setHidden(false);
         } catch (error) {
-          // Ignore on web
+          // Ignore
         }
       }
     };
