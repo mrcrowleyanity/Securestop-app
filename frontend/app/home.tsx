@@ -46,9 +46,8 @@ export default function Home() {
   };
 
   const handleActivateSecureMode = () => {
-    setShowPinModal(true);
-    setPin('');
-    setPinError('');
+    // Go directly to officer login - no PIN required to activate
+    router.push('/officer-login');
   };
 
   const verifyPinAndActivate = async () => {
