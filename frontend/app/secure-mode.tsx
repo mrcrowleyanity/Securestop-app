@@ -22,11 +22,26 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as ScreenOrientation from 'expo-screen-orientation';
 
-// Conditionally import KeepAwake only on native platforms
-let KeepAwake: any = null;
-if (Platform.OS !== 'web') {
-  KeepAwake = require('expo-keep-awake');
-}
+// Helper functions for keep awake - will be no-ops on web
+const activateKeepAwake = async () => {
+  if (Platform.OS === 'web') return;
+  try {
+    const KeepAwake = require('expo-keep-awake');
+    await KeepAwake.activateKeepAwakeAsync();
+  } catch (error) {
+    console.log('KeepAwake error:', error);
+  }
+};
+
+const deactivateKeepAwake = () => {
+  if (Platform.OS === 'web') return;
+  try {
+    const KeepAwake = require('expo-keep-awake');
+    KeepAwake.deactivateKeepAwake();
+  } catch (error) {
+    console.log('KeepAwake deactivate error:', error);
+  }
+};
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width } = Dimensions.get('window');
