@@ -195,6 +195,26 @@ export default function Home() {
           </Text>
         </View>
 
+        {/* Screen Pinning Setup Button - Android Only */}
+        {Platform.OS !== 'web' && (
+          <TouchableOpacity
+            style={styles.pinningSetupButton}
+            onPress={() => setShowPinningModal(true)}
+            activeOpacity={0.7}
+          >
+            <View style={styles.pinningSetupIcon}>
+              <Ionicons name="phone-portrait" size={24} color="#FF9500" />
+            </View>
+            <View style={styles.pinningSetupContent}>
+              <Text style={styles.pinningSetupTitle}>Setup Screen Pinning</Text>
+              <Text style={styles.pinningSetupSubtitle}>
+                Enable full lockout for police encounters
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#FF9500" />
+          </TouchableOpacity>
+        )}
+
         {/* Menu Items */}
         <View style={styles.menuContainer}>
           {menuItems.map((item, index) => (
