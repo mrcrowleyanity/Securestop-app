@@ -281,53 +281,57 @@ export default function SecureMode() {
       onRequestClose={() => {}} // Cannot dismiss
     >
       <View style={styles.pinningModalOverlay}>
-        <View style={styles.pinningModalContent}>
-          <View style={styles.warningIconContainer}>
-            <Ionicons name="warning" size={60} color="#FF3B30" />
-          </View>
-          
-          <Text style={styles.pinningModalTitle}>Screen Pinning Required</Text>
-          
-          <Text style={styles.pinningModalText}>
-            To protect your privacy, you MUST enable Screen Pinning before using Secure Mode.
-          </Text>
-          
-          <View style={styles.pinningSteps}>
-            <Text style={styles.pinningStepTitle}>How to enable:</Text>
-            <Text style={styles.pinningStep}>1. Tap "Open Settings" below</Text>
-            <Text style={styles.pinningStep}>2. Find "Screen Pinning" or "App Pinning"</Text>
-            <Text style={styles.pinningStep}>3. Turn it ON</Text>
-            <Text style={styles.pinningStep}>4. Enable "Ask for PIN before unpinning"</Text>
-            <Text style={styles.pinningStep}>5. Return here and tap "I've Enabled It"</Text>
-          </View>
-
-          <View style={styles.pinningTip}>
-            <Ionicons name="information-circle" size={18} color="#007AFF" />
-            <Text style={styles.pinningTipText}>
-              After enabling, use Recent Apps button and tap the pin icon to lock the app
+        <ScrollView contentContainerStyle={styles.pinningModalScrollContent}>
+          <View style={styles.pinningModalContent}>
+            <View style={styles.warningIconContainer}>
+              <Ionicons name="warning" size={60} color="#FF3B30" />
+            </View>
+            
+            <Text style={styles.pinningModalTitle}>Screen Pinning Required</Text>
+            
+            <Text style={styles.pinningModalText}>
+              Screen pinning locks your phone to this app during police encounters.
             </Text>
-          </View>
+            
+            <View style={styles.pinningSteps}>
+              <Text style={styles.pinningStepTitle}>How to find Screen Pinning:</Text>
+              <Text style={styles.pinningStep}>1. Go to Settings</Text>
+              <Text style={styles.pinningStep}>2. Search "pin" or "screen pin" in search bar</Text>
+              <Text style={styles.pinningStepOr}>— OR find manually —</Text>
+              <Text style={styles.pinningStepSmall}>• Security → Screen/App Pinning</Text>
+              <Text style={styles.pinningStepSmall}>• Security → Advanced → Screen Pinning</Text>
+              <Text style={styles.pinningStepSmall}>• Biometrics & Security → Other → Pin windows</Text>
+              <Text style={styles.pinningStep}>3. Turn it ON</Text>
+              <Text style={styles.pinningStep}>4. Enable "Ask for PIN before unpinning"</Text>
+            </View>
 
-          <TouchableOpacity
-            style={styles.openSettingsButton}
-            onPress={openPinningSettings}
-          >
-            <Ionicons name="settings" size={22} color="#fff" />
-            <Text style={styles.openSettingsButtonText}>Open Settings</Text>
-          </TouchableOpacity>
+            <View style={styles.pinningTip}>
+              <Ionicons name="bulb" size={18} color="#FF9500" />
+              <Text style={styles.pinningTipText}>
+                TIP: Search "pin" in your Settings app to find it quickly!
+              </Text>
+            </View>
 
-          <TouchableOpacity
-            style={styles.confirmPinningButton}
-            onPress={confirmPinningEnabled}
-          >
-            <Ionicons name="checkmark-circle" size={22} color="#34C759" />
-            <Text style={styles.confirmPinningButtonText}>I've Enabled Screen Pinning</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.openSettingsButton}
+              onPress={openPinningSettings}
+            >
+              <Ionicons name="settings" size={22} color="#fff" />
+              <Text style={styles.openSettingsButtonText}>Open Settings</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => router.replace('/home')}
-          >
+            <TouchableOpacity
+              style={styles.confirmPinningButton}
+              onPress={confirmPinningEnabled}
+            >
+              <Ionicons name="checkmark-circle" size={22} color="#34C759" />
+              <Text style={styles.confirmPinningButtonText}>I've Enabled Screen Pinning</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => router.replace('/home')}
+            >
             <Text style={styles.cancelButtonText}>Cancel & Go Back</Text>
           </TouchableOpacity>
         </View>
