@@ -20,8 +20,13 @@ import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
-import * as KeepAwake from 'expo-keep-awake';
 import * as ScreenOrientation from 'expo-screen-orientation';
+
+// Conditionally import KeepAwake only on native platforms
+let KeepAwake: any = null;
+if (Platform.OS !== 'web') {
+  KeepAwake = require('expo-keep-awake');
+}
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width } = Dimensions.get('window');
