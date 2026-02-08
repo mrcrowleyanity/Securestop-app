@@ -400,37 +400,6 @@ export default function SecureMode() {
     </Modal>
   );
 
-  // Loading state - show exit button even while loading
-  if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <View style={styles.lockedHeader}>
-          <Ionicons name="lock-closed" size={16} color="#FF3B30" />
-          <Text style={styles.lockedHeaderText}>SECURE MODE ACTIVE</Text>
-        </View>
-        
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator size="large" color="#007AFF" />
-          <Text style={styles.loadingText}>Loading secure documents...</Text>
-        </View>
-        
-        {/* Exit Button - always visible */}
-        <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
-          <TouchableOpacity 
-            style={styles.exitSecureModeBtn} 
-            onPress={handleExitSecureMode}
-          >
-            <Ionicons name="lock-open" size={20} color="#fff" />
-            <Text style={styles.exitSecureModeBtnText}>Exit Secure Mode</Text>
-          </TouchableOpacity>
-        </View>
-        
-        {renderPinningRequiredModal()}
-        {renderExitModal()}
-      </View>
-    );
-  }
-
   // Document full-screen view
   if (selectedDoc) {
     return (
