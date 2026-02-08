@@ -83,6 +83,8 @@ export default function SecureMode() {
   }, []);
 
   const initSecureMode = async () => {
+    console.log('initSecureMode started');
+    
     // Keep screen awake (only works on native, not web)
     if (Platform.OS === 'android' || Platform.OS === 'ios') {
       await activateKeepAwake();
@@ -109,8 +111,10 @@ export default function SecureMode() {
       }
     }
     
+    console.log('initSecureMode calling loadData');
     // Load data
     await loadData();
+    console.log('initSecureMode completed');
   };
 
   // Block ALL back button attempts
