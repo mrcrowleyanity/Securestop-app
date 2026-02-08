@@ -140,14 +140,23 @@ export default function SecureMode() {
 
       if (userId) {
         console.log('Fetching documents from:', `${API_URL}/api/documents/${userId}`);
-        const response = await axios.get(`${API_URL}/api/documents/${userId}`);
-        console.log('Documents response:', response.data);
-        setDocuments(response.data);
+        try {
+          const response = await axios.get(`${API_URL}/api/documents/${userId}`, {
+            timeout: 10000, // 10 second timeout
+          });
+          console.log('Documents response:', response.data);
+          setDocuments(response.data);
+        } catch (apiError) {
+          console.error('API Error fetching documents:', apiError);
+          setDocuments([]); // Set empty documents on error
+        }
       } else {
         console.log('No userId found');
+        setDocuments([]);
       }
     } catch (error) {
       console.error('Error loading data:', error);
+      setDocuments([]);
     } finally {
       setIsLoading(false);
     }
