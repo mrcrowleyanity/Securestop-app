@@ -57,14 +57,26 @@ export default function SecureMode() {
   }, []);
 
   const initSecureMode = async () => {
-    // Keep screen awake
-    await KeepAwake.activateKeepAwakeAsync();
+    // Keep screen awake (may fail on web)
+    try {
+      await KeepAwake.activateKeepAwakeAsync();
+    } catch (error) {
+      console.log('KeepAwake not available on this platform');
+    }
     
-    // Lock orientation
-    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    // Lock orientation (may fail on web)
+    try {
+      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    } catch (error) {
+      console.log('Screen orientation lock not available on this platform');
+    }
     
     // Hide status bar for more immersive lock
-    StatusBar.setHidden(true);
+    try {
+      StatusBar.setHidden(true);
+    } catch (error) {
+      console.log('StatusBar not available on this platform');
+    }
     
     // Show pinning help on first load
     const hasSeenPinningHelp = await AsyncStorage.getItem('has_seen_pinning_help');
