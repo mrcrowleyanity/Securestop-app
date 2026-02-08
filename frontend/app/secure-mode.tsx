@@ -896,10 +896,28 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     paddingLeft: 4,
   },
+  pinningStepOr: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginVertical: 8,
+    fontStyle: 'italic',
+  },
+  pinningStepSmall: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 4,
+    paddingLeft: 8,
+  },
+  pinningModalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   pinningTip: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: 'rgba(255, 149, 0, 0.1)',
     borderRadius: 12,
     padding: 12,
     marginBottom: 20,
@@ -907,7 +925,7 @@ const styles = StyleSheet.create({
   },
   pinningTipText: {
     flex: 1,
-    color: '#007AFF',
+    color: '#FF9500',
     fontSize: 13,
     lineHeight: 18,
   },
