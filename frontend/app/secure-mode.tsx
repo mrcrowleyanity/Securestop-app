@@ -8,8 +8,8 @@ import {
   Image,
   Platform,
   BackHandler,
-  Alert,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as KeepAwake from 'expo-keep-awake';
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width } = Dimensions.get('window');
 
 interface Document {
@@ -34,6 +34,7 @@ export default function SecureMode() {
   const [badgeNumber, setBadgeNumber] = useState('');
   const [viewedDocs, setViewedDocs] = useState<string[]>([]);
   const [showRestrictedAlert, setShowRestrictedAlert] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -58,20 +59,27 @@ export default function SecureMode() {
   );
 
   const loadData = async () => {
+    setIsLoading(true);
     try {
       const userId = await AsyncStorage.getItem('user_id');
       const name = await AsyncStorage.getItem('current_officer_name');
       const badge = await AsyncStorage.getItem('current_officer_badge');
 
+      console.log('Secure Mode - Officer:', name, 'Badge:', badge, 'UserID:', userId);
+
       if (name) setOfficerName(name);
       if (badge) setBadgeNumber(badge);
 
       if (userId) {
+        console.log('Fetching documents from:', `${API_URL}/api/documents/${userId}`);
         const response = await axios.get(`${API_URL}/api/documents/${userId}`);
+        console.log('Documents loaded:', response.data.length);
         setDocuments(response.data);
       }
     } catch (error) {
       console.error('Error loading data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -132,6 +140,17 @@ export default function SecureMode() {
     return acc;
   }, {} as { [key: string]: Document[] });
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading secure documents...</Text>
+      </View>
+    );
+  }
+
+  // Document full-screen view
   if (selectedDoc) {
     return (
       <View style={styles.container}>
@@ -140,7 +159,7 @@ export default function SecureMode() {
           <TouchableOpacity onPress={() => setSelectedDoc(null)} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{selectedDoc.name}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{selectedDoc.name}</Text>
           <TouchableOpacity onPress={handleUnlock} style={styles.lockButton}>
             <Ionicons name="lock-closed" size={20} color="#FF3B30" />
           </TouchableOpacity>
@@ -166,6 +185,7 @@ export default function SecureMode() {
     );
   }
 
+  // Main secure mode view
   return (
     <View style={styles.container}>
       {/* Header */}
@@ -184,12 +204,12 @@ export default function SecureMode() {
         <View style={styles.officerRow}>
           <Ionicons name="person" size={16} color="#888" />
           <Text style={styles.officerLabel}>Officer:</Text>
-          <Text style={styles.officerValue}>{officerName}</Text>
+          <Text style={styles.officerValue}>{officerName || 'Unknown'}</Text>
         </View>
         <View style={styles.officerRow}>
           <Ionicons name="card" size={16} color="#888" />
           <Text style={styles.officerLabel}>Badge:</Text>
-          <Text style={styles.officerValue}>{badgeNumber}</Text>
+          <Text style={styles.officerValue}>{badgeNumber || 'Unknown'}</Text>
         </View>
       </View>
 
@@ -262,6 +282,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0f0f1a',
+  },
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#0f0f1a',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loadingText: {
+    color: '#888',
+    fontSize: 16,
+    marginTop: 16,
   },
   header: {
     flexDirection: 'row',
