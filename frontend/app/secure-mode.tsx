@@ -477,7 +477,12 @@ export default function SecureMode() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>Available Documents</Text>
 
-        {Object.keys(groupedDocs).length === 0 ? (
+        {isLoading ? (
+          <View style={styles.emptyState}>
+            <ActivityIndicator size="large" color="#007AFF" />
+            <Text style={styles.loadingText}>Loading documents...</Text>
+          </View>
+        ) : Object.keys(groupedDocs).length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="document-outline" size={48} color="#444" />
             <Text style={styles.emptyText}>No documents uploaded</Text>
