@@ -133,12 +133,18 @@ export default function SecureMode() {
       const name = await AsyncStorage.getItem('current_officer_name');
       const badge = await AsyncStorage.getItem('current_officer_badge');
 
+      console.log('Loading data for user:', userId, 'officer:', name, badge);
+
       if (name) setOfficerName(name);
       if (badge) setBadgeNumber(badge);
 
       if (userId) {
+        console.log('Fetching documents from:', `${API_URL}/api/documents/${userId}`);
         const response = await axios.get(`${API_URL}/api/documents/${userId}`);
+        console.log('Documents response:', response.data);
         setDocuments(response.data);
+      } else {
+        console.log('No userId found');
       }
     } catch (error) {
       console.error('Error loading data:', error);
