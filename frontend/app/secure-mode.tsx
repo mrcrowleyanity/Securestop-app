@@ -58,7 +58,9 @@ export default function SecureMode() {
     return () => {
       if (Platform.OS === 'android' || Platform.OS === 'ios') {
         try {
-          KeepAwake.deactivateKeepAwake();
+          if (KeepAwake) {
+            KeepAwake.deactivateKeepAwake();
+          }
         } catch (error) {
           // Ignore
         }
