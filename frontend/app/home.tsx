@@ -17,6 +17,7 @@ import * as Location from 'expo-location';
 export default function Home() {
   const [userEmail, setUserEmail] = useState('');
   const [hasLocation, setHasLocation] = useState(false);
+  const [showPinningModal, setShowPinningModal] = useState(false);
 
   useEffect(() => {
     loadUserData();
