@@ -332,9 +332,10 @@ export default function SecureMode() {
               style={styles.cancelButton}
               onPress={() => router.replace('/home')}
             >
-            <Text style={styles.cancelButtonText}>Cancel & Go Back</Text>
-          </TouchableOpacity>
-        </View>
+              <Text style={styles.cancelButtonText}>Cancel & Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
       </View>
     </Modal>
   );
