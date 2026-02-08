@@ -250,6 +250,9 @@ export default function Home() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Screen Pinning Modal */}
+      {renderPinningModal()}
     </View>
   );
 }
