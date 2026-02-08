@@ -14,34 +14,11 @@ import {
   Modal,
   TextInput,
   Linking,
-  Alert,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
-import * as ScreenOrientation from 'expo-screen-orientation';
-
-// Helper functions for keep awake - will be no-ops on web
-const activateKeepAwake = async () => {
-  if (Platform.OS === 'web') return;
-  try {
-    const KeepAwake = require('expo-keep-awake');
-    await KeepAwake.activateKeepAwakeAsync();
-  } catch (error) {
-    console.log('KeepAwake error:', error);
-  }
-};
-
-const deactivateKeepAwake = () => {
-  if (Platform.OS === 'web') return;
-  try {
-    const KeepAwake = require('expo-keep-awake');
-    KeepAwake.deactivateKeepAwake();
-  } catch (error) {
-    console.log('KeepAwake deactivate error:', error);
-  }
-};
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width } = Dimensions.get('window');
@@ -65,56 +42,26 @@ export default function SecureMode() {
   const [exitPin, setExitPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
-  const [showPinningHelp, setShowPinningHelp] = useState(false);
+  const [showPinningRequired, setShowPinningRequired] = useState(false);
+  const [pinningConfirmed, setPinningConfirmed] = useState(false);
 
   useEffect(() => {
     initSecureMode();
-    
-    return () => {
-      if (Platform.OS === 'android' || Platform.OS === 'ios') {
-        deactivateKeepAwake();
-        try {
-          StatusBar.setHidden(false);
-        } catch (error) {
-          // Ignore
-        }
-      }
-    };
   }, []);
 
   const initSecureMode = async () => {
-    console.log('initSecureMode started');
+    // Check if user has confirmed pinning setup
+    const hasConfirmedPinning = await AsyncStorage.getItem('pinning_confirmed');
     
-    // Keep screen awake (only works on native, not web)
-    if (Platform.OS === 'android' || Platform.OS === 'ios') {
-      await activateKeepAwake();
-      
-      try {
-        await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-      } catch (error) {
-        console.log('Screen orientation lock not available:', error);
-      }
-      
-      try {
-        StatusBar.setHidden(true);
-      } catch (error) {
-        console.log('StatusBar not available:', error);
-      }
+    // Always show pinning requirement on Android/iOS unless confirmed this session
+    if (Platform.OS !== 'web' && !hasConfirmedPinning) {
+      setShowPinningRequired(true);
+    } else {
+      setPinningConfirmed(true);
     }
     
-    // Show pinning help on first load (Android only)
-    if (Platform.OS === 'android') {
-      const hasSeenPinningHelp = await AsyncStorage.getItem('has_seen_pinning_help');
-      if (!hasSeenPinningHelp) {
-        setShowPinningHelp(true);
-        await AsyncStorage.setItem('has_seen_pinning_help', 'true');
-      }
-    }
-    
-    console.log('initSecureMode calling loadData');
     // Load data
     await loadData();
-    console.log('initSecureMode completed');
   };
 
   // Block ALL back button attempts
@@ -137,25 +84,20 @@ export default function SecureMode() {
       const name = await AsyncStorage.getItem('current_officer_name');
       const badge = await AsyncStorage.getItem('current_officer_badge');
 
-      console.log('Loading data for user:', userId, 'officer:', name, badge);
-
       if (name) setOfficerName(name);
       if (badge) setBadgeNumber(badge);
 
       if (userId) {
-        console.log('Fetching documents from:', `${API_URL}/api/documents/${userId}`);
         try {
           const response = await axios.get(`${API_URL}/api/documents/${userId}`, {
-            timeout: 10000, // 10 second timeout
+            timeout: 10000,
           });
-          console.log('Documents response:', response.data);
-          setDocuments(response.data);
+          setDocuments(response.data || []);
         } catch (apiError) {
-          console.error('API Error fetching documents:', apiError);
-          setDocuments([]); // Set empty documents on error
+          console.error('API Error:', apiError);
+          setDocuments([]);
         }
       } else {
-        console.log('No userId found');
         setDocuments([]);
       }
     } catch (error) {
@@ -209,9 +151,7 @@ export default function SecureMode() {
         await AsyncStorage.removeItem('current_officer_badge');
         await AsyncStorage.removeItem('current_location');
         await AsyncStorage.removeItem('secure_mode_active');
-        
-        // Restore status bar
-        StatusBar.setHidden(false);
+        await AsyncStorage.removeItem('pinning_confirmed');
         
         // Navigate to home
         setShowExitModal(false);
@@ -249,27 +189,26 @@ export default function SecureMode() {
     }
   };
 
-  const openAndroidPinSettings = async () => {
-    // Try to open Android security settings for screen pinning
-    if (Platform.OS === 'android') {
-      try {
-        // Try to open the security settings directly
-        const securitySettingsUrl = 'android.settings.SECURITY_SETTINGS';
-        const canOpen = await Linking.canOpenURL(`intent://#Intent;action=${securitySettingsUrl};end`);
-        
-        if (canOpen) {
-          await Linking.openURL(`intent://#Intent;action=${securitySettingsUrl};end`);
-        } else {
-          // Fallback to general settings
-          await Linking.openSettings();
-        }
-      } catch (error) {
-        // Fallback to general settings
+  const openPinningSettings = async () => {
+    try {
+      // Open Android security settings
+      if (Platform.OS === 'android') {
+        // Try to open security settings directly
+        await Linking.sendIntent('android.settings.SECURITY_SETTINGS');
+      } else {
         await Linking.openSettings();
       }
-    } else {
+    } catch (error) {
+      // Fallback to general settings
       await Linking.openSettings();
     }
+  };
+
+  const confirmPinningEnabled = async () => {
+    // User confirms they've enabled pinning
+    await AsyncStorage.setItem('pinning_confirmed', 'true');
+    setPinningConfirmed(true);
+    setShowPinningRequired(false);
   };
 
   const getDocTypeLabel = (type: string) => {
@@ -313,45 +252,64 @@ export default function SecureMode() {
     return acc;
   }, {} as { [key: string]: Document[] });
 
-  // Screen Pinning Help Modal
-  const renderPinningHelpModal = () => (
+  // Pinning Required Modal - MANDATORY
+  const renderPinningRequiredModal = () => (
     <Modal
-      visible={showPinningHelp}
+      visible={showPinningRequired}
       transparent
       animationType="fade"
-      onRequestClose={() => setShowPinningHelp(false)}
+      onRequestClose={() => {}} // Cannot dismiss
     >
-      <View style={styles.helpModalOverlay}>
-        <View style={styles.helpModalContent}>
-          <Ionicons name="phone-portrait" size={48} color="#007AFF" />
-          <Text style={styles.helpModalTitle}>Enable Screen Pinning</Text>
-          <Text style={styles.helpModalText}>
-            For maximum security, enable Android's Screen Pinning feature:
-          </Text>
-          <View style={styles.helpSteps}>
-            <Text style={styles.helpStep}>1. Go to Settings → Security</Text>
-            <Text style={styles.helpStep}>2. Find "Screen Pinning" or "App Pinning"</Text>
-            <Text style={styles.helpStep}>3. Turn it ON</Text>
-            <Text style={styles.helpStep}>4. Open Recent Apps and tap the pin icon</Text>
+      <View style={styles.pinningModalOverlay}>
+        <View style={styles.pinningModalContent}>
+          <View style={styles.warningIconContainer}>
+            <Ionicons name="warning" size={60} color="#FF3B30" />
           </View>
-          <Text style={styles.helpNote}>
-            This will prevent anyone from leaving this app without your PIN!
+          
+          <Text style={styles.pinningModalTitle}>Screen Pinning Required</Text>
+          
+          <Text style={styles.pinningModalText}>
+            To protect your privacy, you MUST enable Screen Pinning before using Secure Mode.
           </Text>
-          <View style={styles.helpButtons}>
-            <TouchableOpacity
-              style={styles.helpOpenSettings}
-              onPress={openAndroidPinSettings}
-            >
-              <Ionicons name="settings" size={18} color="#fff" />
-              <Text style={styles.helpOpenSettingsText}>Open Settings</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.helpDismiss}
-              onPress={() => setShowPinningHelp(false)}
-            >
-              <Text style={styles.helpDismissText}>Got it</Text>
-            </TouchableOpacity>
+          
+          <View style={styles.pinningSteps}>
+            <Text style={styles.pinningStepTitle}>How to enable:</Text>
+            <Text style={styles.pinningStep}>1. Tap "Open Settings" below</Text>
+            <Text style={styles.pinningStep}>2. Find "Screen Pinning" or "App Pinning"</Text>
+            <Text style={styles.pinningStep}>3. Turn it ON</Text>
+            <Text style={styles.pinningStep}>4. Enable "Ask for PIN before unpinning"</Text>
+            <Text style={styles.pinningStep}>5. Return here and tap "I've Enabled It"</Text>
           </View>
+
+          <View style={styles.pinningTip}>
+            <Ionicons name="information-circle" size={18} color="#007AFF" />
+            <Text style={styles.pinningTipText}>
+              After enabling, use Recent Apps button and tap the pin icon to lock the app
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.openSettingsButton}
+            onPress={openPinningSettings}
+          >
+            <Ionicons name="settings" size={22} color="#fff" />
+            <Text style={styles.openSettingsButtonText}>Open Settings</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.confirmPinningButton}
+            onPress={confirmPinningEnabled}
+          >
+            <Ionicons name="checkmark-circle" size={22} color="#34C759" />
+            <Text style={styles.confirmPinningButtonText}>I've Enabled Screen Pinning</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => router.replace('/home')}
+          >
+            <Text style={styles.cancelButtonText}>Cancel & Go Back</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -421,13 +379,13 @@ export default function SecureMode() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <StatusBar hidden />
         <View style={styles.lockedHeader}>
           <Ionicons name="lock-closed" size={16} color="#FF3B30" />
           <Text style={styles.lockedHeaderText}>SECURE MODE ACTIVE</Text>
         </View>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Loading secure documents...</Text>
+        {renderPinningRequiredModal()}
       </View>
     );
   }
@@ -436,15 +394,14 @@ export default function SecureMode() {
   if (selectedDoc) {
     return (
       <View style={styles.container}>
-        <StatusBar hidden />
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => setSelectedDoc(null)} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{selectedDoc.name}</Text>
-          <TouchableOpacity onPress={handleExitSecureMode} style={styles.exitButton}>
-            <Ionicons name="lock-open" size={20} color="#007AFF" />
+          <TouchableOpacity onPress={handleExitSecureMode} style={styles.exitButtonSmall}>
+            <Ionicons name="lock-open" size={20} color="#FF3B30" />
           </TouchableOpacity>
         </View>
 
@@ -457,6 +414,12 @@ export default function SecureMode() {
           />
         </ScrollView>
 
+        {/* Exit Button */}
+        <TouchableOpacity style={styles.exitSecureModeBtn} onPress={handleExitSecureMode}>
+          <Ionicons name="lock-open" size={20} color="#fff" />
+          <Text style={styles.exitSecureModeBtnText}>Exit Secure Mode</Text>
+        </TouchableOpacity>
+
         {/* Restricted Alert */}
         {showRestrictedAlert && (
           <View style={styles.restrictedAlert}>
@@ -466,6 +429,7 @@ export default function SecureMode() {
         )}
 
         {renderExitModal()}
+        {renderPinningRequiredModal()}
       </View>
     );
   }
@@ -473,16 +437,14 @@ export default function SecureMode() {
   // Main secure mode view
   return (
     <View style={styles.container}>
-      <StatusBar hidden />
-      
       {/* Secure Mode Header */}
       <View style={styles.secureHeader}>
         <View style={styles.secureBadge}>
           <Ionicons name="shield-checkmark" size={20} color="#34C759" />
           <Text style={styles.secureBadgeText}>SECURE MODE</Text>
         </View>
-        <TouchableOpacity onPress={handleExitSecureMode} style={styles.exitButton}>
-          <Ionicons name="lock-open" size={20} color="#007AFF" />
+        <TouchableOpacity onPress={handleExitSecureMode} style={styles.exitButtonSmall}>
+          <Ionicons name="lock-open" size={20} color="#FF3B30" />
         </TouchableOpacity>
       </View>
 
@@ -546,24 +508,19 @@ export default function SecureMode() {
             </View>
           ))
         )}
-
-        {/* Screen Pinning Tip */}
-        {Platform.OS === 'android' && (
-          <TouchableOpacity style={styles.pinningTip} onPress={() => setShowPinningHelp(true)}>
-            <Ionicons name="phone-portrait" size={18} color="#FF9500" />
-            <Text style={styles.pinningTipText}>
-              Tap here to learn how to lock this app to the screen
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color="#FF9500" />
-          </TouchableOpacity>
-        )}
       </ScrollView>
 
-      {/* Exit Secure Mode Button */}
+      {/* Exit Secure Mode Button - PROMINENT */}
       <TouchableOpacity style={styles.exitSecureModeBtn} onPress={handleExitSecureMode}>
         <Ionicons name="lock-open" size={20} color="#fff" />
         <Text style={styles.exitSecureModeBtnText}>Exit Secure Mode</Text>
       </TouchableOpacity>
+
+      {/* Bottom Lock Bar */}
+      <View style={styles.bottomBar}>
+        <Ionicons name="lock-closed" size={16} color="#FF3B30" />
+        <Text style={styles.bottomBarText}>Phone locked to Secure Folder</Text>
+      </View>
 
       {/* Restricted Alert */}
       {showRestrictedAlert && (
@@ -573,14 +530,8 @@ export default function SecureMode() {
         </View>
       )}
 
-      {/* Bottom Lock Bar */}
-      <View style={styles.bottomBar}>
-        <Ionicons name="lock-closed" size={16} color="#FF3B30" />
-        <Text style={styles.bottomBarText}>Phone locked to Secure Folder</Text>
-      </View>
-
       {renderExitModal()}
-      {renderPinningHelpModal()}
+      {renderPinningRequiredModal()}
     </View>
   );
 }
@@ -661,11 +612,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
-  exitButton: {
+  exitButtonSmall: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -789,25 +740,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#34C759',
   },
-  pinningTip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255, 149, 0, 0.1)',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    gap: 12,
-  },
-  pinningTipText: {
-    flex: 1,
-    color: '#FF9500',
-    fontSize: 13,
-  },
   exitSecureModeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#007AFF',
+    backgroundColor: '#FF3B30',
     marginHorizontal: 20,
     marginBottom: 8,
     paddingVertical: 16,
@@ -843,11 +780,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
-    shadowColor: '#FF3B30',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
   },
   restrictedText: {
     color: '#fff',
@@ -866,6 +798,122 @@ const styles = StyleSheet.create({
     color: '#FF3B30',
     fontSize: 13,
     fontWeight: '600',
+  },
+  // Pinning Required Modal Styles
+  pinningModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  pinningModalContent: {
+    backgroundColor: '#1a1a2e',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 380,
+    alignItems: 'center',
+  },
+  warningIconContainer: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  pinningModalTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FF3B30',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  pinningModalText: {
+    fontSize: 15,
+    color: '#ccc',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 22,
+  },
+  pinningSteps: {
+    width: '100%',
+    backgroundColor: '#0f0f1a',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  pinningStepTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginBottom: 12,
+  },
+  pinningStep: {
+    fontSize: 14,
+    color: '#ccc',
+    marginBottom: 8,
+    paddingLeft: 4,
+  },
+  pinningTip: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+    gap: 10,
+  },
+  pinningTipText: {
+    flex: 1,
+    color: '#007AFF',
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  openSettingsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#007AFF',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    width: '100%',
+    gap: 10,
+    marginBottom: 12,
+  },
+  openSettingsButtonText: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  confirmPinningButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(52, 199, 89, 0.1)',
+    borderWidth: 2,
+    borderColor: '#34C759',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    width: '100%',
+    gap: 10,
+    marginBottom: 12,
+  },
+  confirmPinningButtonText: {
+    color: '#34C759',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  cancelButton: {
+    paddingVertical: 12,
+  },
+  cancelButtonText: {
+    color: '#888',
+    fontSize: 14,
   },
   // Exit Modal Styles
   exitModalOverlay: {
@@ -952,78 +1000,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#fff',
-  },
-  // Help Modal Styles
-  helpModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  helpModalContent: {
-    backgroundColor: '#1a1a2e',
-    borderRadius: 24,
-    padding: 24,
-    width: '100%',
-    maxWidth: 340,
-    alignItems: 'center',
-  },
-  helpModalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  helpModalText: {
-    fontSize: 14,
-    color: '#888',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  helpSteps: {
-    width: '100%',
-    backgroundColor: '#0f0f1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  helpStep: {
-    color: '#fff',
-    fontSize: 14,
-    marginBottom: 8,
-  },
-  helpNote: {
-    fontSize: 13,
-    color: '#34C759',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  helpButtons: {
-    width: '100%',
-    gap: 12,
-  },
-  helpOpenSettings: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#007AFF',
-    paddingVertical: 14,
-    borderRadius: 12,
-    gap: 8,
-  },
-  helpOpenSettingsText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  helpDismiss: {
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  helpDismissText: {
-    color: '#888',
-    fontSize: 16,
   },
 });
