@@ -47,6 +47,13 @@ export default function SecureMode() {
 
   useEffect(() => {
     initSecureMode();
+    
+    // Failsafe: If still loading after 5 seconds, force it to false
+    const failsafe = setTimeout(() => {
+      setIsLoading(false);
+    }, 5000);
+    
+    return () => clearTimeout(failsafe);
   }, []);
 
   const initSecureMode = async () => {
