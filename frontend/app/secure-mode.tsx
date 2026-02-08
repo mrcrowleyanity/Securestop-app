@@ -68,25 +68,20 @@ export default function SecureMode() {
 
   const initSecureMode = async () => {
     // Keep screen awake (only works on native, not web)
-    if (Platform.OS !== 'web') {
+    // Note: Wake Lock API on web requires user gesture, so we skip it entirely on web
+    if (Platform.OS === 'android' || Platform.OS === 'ios') {
       try {
         await KeepAwake.activateKeepAwakeAsync();
       } catch (error) {
         console.log('KeepAwake not available:', error);
       }
-    }
-    
-    // Lock orientation (only works on native, not web)
-    if (Platform.OS !== 'web') {
+      
       try {
         await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
       } catch (error) {
         console.log('Screen orientation lock not available:', error);
       }
-    }
-    
-    // Hide status bar for more immersive lock
-    if (Platform.OS !== 'web') {
+      
       try {
         StatusBar.setHidden(true);
       } catch (error) {
@@ -94,11 +89,13 @@ export default function SecureMode() {
       }
     }
     
-    // Show pinning help on first load
-    const hasSeenPinningHelp = await AsyncStorage.getItem('has_seen_pinning_help');
-    if (!hasSeenPinningHelp && Platform.OS === 'android') {
-      setShowPinningHelp(true);
-      await AsyncStorage.setItem('has_seen_pinning_help', 'true');
+    // Show pinning help on first load (Android only)
+    if (Platform.OS === 'android') {
+      const hasSeenPinningHelp = await AsyncStorage.getItem('has_seen_pinning_help');
+      if (!hasSeenPinningHelp) {
+        setShowPinningHelp(true);
+        await AsyncStorage.setItem('has_seen_pinning_help', 'true');
+      }
     }
     
     // Load data
