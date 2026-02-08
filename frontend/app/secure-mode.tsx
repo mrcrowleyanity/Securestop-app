@@ -194,9 +194,27 @@ export default function SecureMode() {
     }
   };
 
-  const openAndroidPinSettings = () => {
+  const openAndroidPinSettings = async () => {
     // Try to open Android security settings for screen pinning
-    Linking.openSettings();
+    if (Platform.OS === 'android') {
+      try {
+        // Try to open the security settings directly
+        const securitySettingsUrl = 'android.settings.SECURITY_SETTINGS';
+        const canOpen = await Linking.canOpenURL(`intent://#Intent;action=${securitySettingsUrl};end`);
+        
+        if (canOpen) {
+          await Linking.openURL(`intent://#Intent;action=${securitySettingsUrl};end`);
+        } else {
+          // Fallback to general settings
+          await Linking.openSettings();
+        }
+      } catch (error) {
+        // Fallback to general settings
+        await Linking.openSettings();
+      }
+    } else {
+      await Linking.openSettings();
+    }
   };
 
   const getDocTypeLabel = (type: string) => {
