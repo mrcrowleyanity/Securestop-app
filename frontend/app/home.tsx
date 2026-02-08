@@ -43,6 +43,88 @@ export default function Home() {
     router.push('/officer-login');
   };
 
+  const openScreenPinningSettings = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        // Try to open security settings directly
+        await Linking.openSettings();
+      } catch (error) {
+        console.error('Failed to open settings:', error);
+      }
+    }
+    setShowPinningModal(false);
+  };
+
+  const renderPinningModal = () => (
+    <Modal
+      visible={showPinningModal}
+      transparent
+      animationType="fade"
+      onRequestClose={() => setShowPinningModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalIconContainer}>
+            <Ionicons name="phone-portrait" size={48} color="#007AFF" />
+          </View>
+          <Text style={styles.modalTitle}>Setup Screen Pinning</Text>
+          <Text style={styles.modalSubtitle}>
+            Screen pinning locks your phone to the Secure Folder app during police encounters.
+          </Text>
+          
+          <View style={styles.stepsContainer}>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>1</Text>
+              </View>
+              <Text style={styles.stepText}>Go to Settings → Security & Privacy</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>2</Text>
+              </View>
+              <Text style={styles.stepText}>Find "App Pinning" or "Screen Pinning"</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>3</Text>
+              </View>
+              <Text style={styles.stepText}>Turn it ON and enable "Ask for PIN to unpin"</Text>
+            </View>
+            <View style={styles.stepItem}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>4</Text>
+              </View>
+              <Text style={styles.stepText}>In Secure Mode, use Recent Apps → Pin icon</Text>
+            </View>
+          </View>
+
+          <View style={styles.tipBox}>
+            <Ionicons name="bulb" size={18} color="#FF9500" />
+            <Text style={styles.tipText}>
+              Once pinned, hold Back + Recent to unpin (requires your PIN)
+            </Text>
+          </View>
+
+          <TouchableOpacity
+            style={styles.openSettingsBtn}
+            onPress={openScreenPinningSettings}
+          >
+            <Ionicons name="settings" size={20} color="#fff" />
+            <Text style={styles.openSettingsBtnText}>Open Settings</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.dismissBtn}
+            onPress={() => setShowPinningModal(false)}
+          >
+            <Text style={styles.dismissBtnText}>I'll do this later</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+
   const menuItems = [
     {
       icon: 'document-text',
