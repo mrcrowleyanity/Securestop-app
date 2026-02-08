@@ -375,7 +375,7 @@ export default function SecureMode() {
     </Modal>
   );
 
-  // Loading state
+  // Loading state - show exit button even while loading
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -385,7 +385,18 @@ export default function SecureMode() {
         </View>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Loading secure documents...</Text>
+        
+        {/* Exit Button - always visible */}
+        <TouchableOpacity 
+          style={[styles.exitSecureModeBtn, { position: 'absolute', bottom: 60, left: 20, right: 20 }]} 
+          onPress={handleExitSecureMode}
+        >
+          <Ionicons name="lock-open" size={20} color="#fff" />
+          <Text style={styles.exitSecureModeBtnText}>Exit Secure Mode</Text>
+        </TouchableOpacity>
+        
         {renderPinningRequiredModal()}
+        {renderExitModal()}
       </View>
     );
   }
