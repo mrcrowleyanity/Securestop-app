@@ -51,15 +51,17 @@ export default function SecureMode() {
     initSecureMode();
     
     return () => {
-      try {
-        KeepAwake.deactivateKeepAwake();
-      } catch (error) {
-        // Ignore on web
-      }
-      try {
-        StatusBar.setHidden(false);
-      } catch (error) {
-        // Ignore on web
+      if (Platform.OS !== 'web') {
+        try {
+          KeepAwake.deactivateKeepAwake();
+        } catch (error) {
+          // Ignore on web
+        }
+        try {
+          StatusBar.setHidden(false);
+        } catch (error) {
+          // Ignore on web
+        }
       }
     };
   }, []);
