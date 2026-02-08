@@ -14,6 +14,7 @@ import {
   Modal,
   TextInput,
   Linking,
+  SafeAreaView,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -21,7 +22,10 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
+
+// Check if running in Expo Go (no native modules available)
+const isExpoGo = !Platform.OS || Platform.OS === 'web';
 
 interface Document {
   id: string;
@@ -44,31 +48,51 @@ export default function SecureMode() {
   const [isVerifying, setIsVerifying] = useState(false);
   const [showPinningRequired, setShowPinningRequired] = useState(false);
   const [pinningConfirmed, setPinningConfirmed] = useState(false);
+  const [isLockTaskActive, setIsLockTaskActive] = useState(false);
+  const [showExpoGoWarning, setShowExpoGoWarning] = useState(false);
 
   useEffect(() => {
     initSecureMode();
     
-    // Failsafe: If still loading after 5 seconds, force it to false
+    // Failsafe timeout
     const failsafe = setTimeout(() => {
       setIsLoading(false);
     }, 5000);
     
-    return () => clearTimeout(failsafe);
+    return () => {
+      clearTimeout(failsafe);
+      // Cleanup on unmount
+      cleanupSecureMode();
+    };
   }, []);
 
   const initSecureMode = async () => {
-    // Check if user has confirmed pinning setup
-    const hasConfirmedPinning = await AsyncStorage.getItem('pinning_confirmed');
-    
-    // Always show pinning requirement on Android/iOS unless confirmed this session
-    if (Platform.OS !== 'web' && !hasConfirmedPinning) {
-      setShowPinningRequired(true);
-    } else {
-      setPinningConfirmed(true);
+    try {
+      // Check if user has confirmed pinning setup
+      const hasConfirmedPinning = await AsyncStorage.getItem('pinning_confirmed');
+      
+      if (Platform.OS === 'android' && !hasConfirmedPinning) {
+        // Check if we're in Expo Go (limited native support)
+        setShowPinningRequired(true);
+      } else {
+        setPinningConfirmed(true);
+      }
+      
+      // Load data
+      await loadData();
+    } catch (error) {
+      console.error('Init error:', error);
+      setIsLoading(false);
     }
-    
-    // Load data
-    await loadData();
+  };
+
+  const cleanupSecureMode = async () => {
+    // Cleanup when leaving secure mode
+    try {
+      // Future: stopLockTask() when native module is available
+    } catch (error) {
+      console.error('Cleanup error:', error);
+    }
   };
 
   // Block ALL back button attempts
@@ -91,6 +115,8 @@ export default function SecureMode() {
       const name = await AsyncStorage.getItem('current_officer_name');
       const badge = await AsyncStorage.getItem('current_officer_badge');
 
+      console.log('SecureMode - Loading data for user:', userId);
+
       if (name) setOfficerName(name);
       if (badge) setBadgeNumber(badge);
 
@@ -99,12 +125,14 @@ export default function SecureMode() {
           const response = await axios.get(`${API_URL}/api/documents/${userId}`, {
             timeout: 10000,
           });
+          console.log('Documents loaded:', response.data?.length || 0);
           setDocuments(response.data || []);
         } catch (apiError) {
           console.error('API Error:', apiError);
           setDocuments([]);
         }
       } else {
+        console.log('No user_id found in AsyncStorage');
         setDocuments([]);
       }
     } catch (error) {
@@ -144,6 +172,13 @@ export default function SecureMode() {
 
     try {
       const userId = await AsyncStorage.getItem('user_id');
+      
+      if (!userId) {
+        setPinError('Session expired. Please restart the app.');
+        setIsVerifying(false);
+        return;
+      }
+
       const response = await axios.post(`${API_URL}/api/users/verify-pin`, {
         user_id: userId,
         pin: exitPin,
@@ -154,11 +189,15 @@ export default function SecureMode() {
         await logOfficerAccess();
         
         // Clear secure mode data
-        await AsyncStorage.removeItem('current_officer_name');
-        await AsyncStorage.removeItem('current_officer_badge');
-        await AsyncStorage.removeItem('current_location');
-        await AsyncStorage.removeItem('secure_mode_active');
-        await AsyncStorage.removeItem('pinning_confirmed');
+        await AsyncStorage.multiRemove([
+          'current_officer_name',
+          'current_officer_badge',
+          'current_location',
+          'secure_mode_active',
+          'pinning_confirmed',
+        ]);
+        
+        // Future: stopLockTask() when native module is available
         
         // Navigate to home
         setShowExitModal(false);
@@ -167,9 +206,14 @@ export default function SecureMode() {
         setPinError('Incorrect PIN. Try again.');
         setExitPin('');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('PIN verification error:', error);
-      setPinError('Failed to verify PIN');
+      if (error.response?.status === 401) {
+        setPinError('Incorrect PIN. Try again.');
+      } else {
+        setPinError('Failed to verify PIN. Please try again.');
+      }
+      setExitPin('');
     } finally {
       setIsVerifying(false);
     }
@@ -190,6 +234,7 @@ export default function SecureMode() {
           longitude: location?.longitude,
           documents_viewed: viewedDocs,
         });
+        console.log('Access logged successfully');
       }
     } catch (error) {
       console.error('Failed to log access:', error);
@@ -200,10 +245,9 @@ export default function SecureMode() {
     try {
       if (Platform.OS === 'android') {
         // Try different Android security settings intents
-        // Different manufacturers use different settings paths
         const intents = [
           'android.settings.SECURITY_SETTINGS',
-          'android.settings.LOCK_SCREEN_SETTINGS', 
+          'android.settings.LOCK_SCREEN_SETTINGS',
         ];
         
         for (const intent of intents) {
@@ -214,7 +258,6 @@ export default function SecureMode() {
             continue;
           }
         }
-        // Final fallback
         await Linking.openSettings();
       } else {
         await Linking.openSettings();
@@ -225,10 +268,13 @@ export default function SecureMode() {
   };
 
   const confirmPinningEnabled = async () => {
-    // User confirms they've enabled pinning
-    await AsyncStorage.setItem('pinning_confirmed', 'true');
-    setPinningConfirmed(true);
-    setShowPinningRequired(false);
+    try {
+      await AsyncStorage.setItem('pinning_confirmed', 'true');
+      setPinningConfirmed(true);
+      setShowPinningRequired(false);
+    } catch (error) {
+      console.error('Error saving pinning confirmation:', error);
+    }
   };
 
   const getDocTypeLabel = (type: string) => {
@@ -272,19 +318,22 @@ export default function SecureMode() {
     return acc;
   }, {} as { [key: string]: Document[] });
 
-  // Pinning Required Modal - MANDATORY
+  // Pinning Required Modal
   const renderPinningRequiredModal = () => (
     <Modal
       visible={showPinningRequired}
       transparent
       animationType="fade"
-      onRequestClose={() => {}} // Cannot dismiss
+      onRequestClose={() => {}}
     >
-      <View style={styles.pinningModalOverlay}>
-        <ScrollView contentContainerStyle={styles.pinningModalScrollContent}>
+      <View style={styles.modalOverlay}>
+        <ScrollView 
+          contentContainerStyle={styles.modalScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.pinningModalContent}>
             <View style={styles.warningIconContainer}>
-              <Ionicons name="warning" size={60} color="#FF3B30" />
+              <Ionicons name="warning" size={50} color="#FF3B30" />
             </View>
             
             <Text style={styles.pinningModalTitle}>Screen Pinning Required</Text>
@@ -296,7 +345,7 @@ export default function SecureMode() {
             <View style={styles.pinningSteps}>
               <Text style={styles.pinningStepTitle}>How to find Screen Pinning:</Text>
               <Text style={styles.pinningStep}>1. Go to Settings</Text>
-              <Text style={styles.pinningStep}>2. Search "pin" or "screen pin" in search bar</Text>
+              <Text style={styles.pinningStep}>2. Search "pin" in the search bar</Text>
               <Text style={styles.pinningStepOr}>— OR find manually —</Text>
               <Text style={styles.pinningStepSmall}>• Security → Screen/App Pinning</Text>
               <Text style={styles.pinningStepSmall}>• Security → Advanced → Screen Pinning</Text>
@@ -315,6 +364,7 @@ export default function SecureMode() {
             <TouchableOpacity
               style={styles.openSettingsButton}
               onPress={openPinningSettings}
+              activeOpacity={0.8}
             >
               <Ionicons name="settings" size={22} color="#fff" />
               <Text style={styles.openSettingsButtonText}>Open Settings</Text>
@@ -323,6 +373,7 @@ export default function SecureMode() {
             <TouchableOpacity
               style={styles.confirmPinningButton}
               onPress={confirmPinningEnabled}
+              activeOpacity={0.8}
             >
               <Ionicons name="checkmark-circle" size={22} color="#34C759" />
               <Text style={styles.confirmPinningButtonText}>I've Enabled Screen Pinning</Text>
@@ -331,6 +382,7 @@ export default function SecureMode() {
             <TouchableOpacity
               style={styles.cancelButton}
               onPress={() => router.replace('/home')}
+              activeOpacity={0.7}
             >
               <Text style={styles.cancelButtonText}>Cancel & Go Back</Text>
             </TouchableOpacity>
@@ -348,7 +400,7 @@ export default function SecureMode() {
       animationType="fade"
       onRequestClose={() => setShowExitModal(false)}
     >
-      <View style={styles.exitModalOverlay}>
+      <View style={styles.modalOverlay}>
         <View style={styles.exitModalContent}>
           <View style={styles.exitModalHeader}>
             <Ionicons name="lock-open" size={40} color="#007AFF" />
@@ -380,6 +432,7 @@ export default function SecureMode() {
               style={styles.cancelExitBtn}
               onPress={() => setShowExitModal(false)}
               disabled={isVerifying}
+              activeOpacity={0.7}
             >
               <Text style={styles.cancelExitBtnText}>Cancel</Text>
             </TouchableOpacity>
@@ -387,6 +440,7 @@ export default function SecureMode() {
               style={[styles.confirmExitBtn, isVerifying && styles.btnDisabled]}
               onPress={verifyPinAndExit}
               disabled={isVerifying}
+              activeOpacity={0.7}
             >
               {isVerifying ? (
                 <ActivityIndicator color="#fff" size="small" />
@@ -400,23 +454,62 @@ export default function SecureMode() {
     </Modal>
   );
 
+  // Restricted Alert Overlay
+  const renderRestrictedAlert = () => {
+    if (!showRestrictedAlert) return null;
+    
+    return (
+      <View style={styles.restrictedAlert}>
+        <Ionicons name="lock-closed" size={24} color="#fff" />
+        <Text style={styles.restrictedText}>PIN Required to Exit</Text>
+      </View>
+    );
+  };
+
+  // Exit Button Component - ALWAYS VISIBLE
+  const ExitButton = () => (
+    <TouchableOpacity 
+      style={styles.exitSecureModeBtn} 
+      onPress={handleExitSecureMode}
+      activeOpacity={0.8}
+      testID="exit-secure-mode-btn"
+    >
+      <Ionicons name="lock-open" size={20} color="#fff" />
+      <Text style={styles.exitSecureModeBtnText}>Exit Secure Mode</Text>
+    </TouchableOpacity>
+  );
+
   // Document full-screen view
   if (selectedDoc) {
     return (
-      <View style={styles.container}>
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
+        
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => setSelectedDoc(null)} style={styles.backButton}>
+          <TouchableOpacity 
+            onPress={() => setSelectedDoc(null)} 
+            style={styles.backButton}
+            activeOpacity={0.7}
+          >
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{selectedDoc.name}</Text>
-          <TouchableOpacity onPress={handleExitSecureMode} style={styles.exitButtonSmall}>
+          <TouchableOpacity 
+            onPress={handleExitSecureMode} 
+            style={styles.exitButtonSmall}
+            activeOpacity={0.7}
+          >
             <Ionicons name="lock-open" size={20} color="#FF3B30" />
           </TouchableOpacity>
         </View>
 
         {/* Document View */}
-        <ScrollView style={styles.docViewContainer} contentContainerStyle={styles.docViewContent}>
+        <ScrollView 
+          style={styles.docViewContainer} 
+          contentContainerStyle={styles.docViewContent}
+          showsVerticalScrollIndicator={false}
+        >
           <Image
             source={{ uri: selectedDoc.image_base64 }}
             style={styles.documentImage}
@@ -424,36 +517,33 @@ export default function SecureMode() {
           />
         </ScrollView>
 
-        {/* Exit Button */}
-        <TouchableOpacity style={styles.exitSecureModeBtn} onPress={handleExitSecureMode}>
-          <Ionicons name="lock-open" size={20} color="#fff" />
-          <Text style={styles.exitSecureModeBtnText}>Exit Secure Mode</Text>
-        </TouchableOpacity>
+        {/* Exit Button - ALWAYS VISIBLE */}
+        <ExitButton />
 
-        {/* Restricted Alert */}
-        {showRestrictedAlert && (
-          <View style={styles.restrictedAlert}>
-            <Ionicons name="lock-closed" size={24} color="#fff" />
-            <Text style={styles.restrictedText}>PIN Required to Exit</Text>
-          </View>
-        )}
-
+        {renderRestrictedAlert()}
         {renderExitModal()}
         {renderPinningRequiredModal()}
-      </View>
+      </SafeAreaView>
     );
   }
 
   // Main secure mode view
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor="#1a1a2e" />
+      
       {/* Secure Mode Header */}
       <View style={styles.secureHeader}>
         <View style={styles.secureBadge}>
           <Ionicons name="shield-checkmark" size={20} color="#34C759" />
           <Text style={styles.secureBadgeText}>SECURE MODE</Text>
         </View>
-        <TouchableOpacity onPress={handleExitSecureMode} style={styles.exitButtonSmall}>
+        <TouchableOpacity 
+          onPress={handleExitSecureMode} 
+          style={styles.exitButtonSmall}
+          activeOpacity={0.7}
+          testID="exit-btn-header"
+        >
           <Ionicons name="lock-open" size={20} color="#FF3B30" />
         </TouchableOpacity>
       </View>
@@ -469,12 +559,18 @@ export default function SecureMode() {
         </View>
         <View style={styles.accessInfo}>
           <Ionicons name="time" size={14} color="#888" />
-          <Text style={styles.accessTime}>Access logged at {new Date().toLocaleTimeString()}</Text>
+          <Text style={styles.accessTime}>
+            Access logged at {new Date().toLocaleTimeString()}
+          </Text>
         </View>
       </View>
 
       {/* Documents List */}
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.content} 
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.contentContainer}
+      >
         <Text style={styles.sectionTitle}>Available Documents</Text>
 
         {isLoading ? (
@@ -500,6 +596,7 @@ export default function SecureMode() {
                   key={doc.id}
                   style={styles.docItem}
                   onPress={() => handleViewDocument(doc)}
+                  activeOpacity={0.7}
                 >
                   <View style={styles.docThumbnail}>
                     <Image
@@ -525,29 +622,21 @@ export default function SecureMode() {
         )}
       </ScrollView>
 
-      {/* Exit Secure Mode Button - PROMINENT */}
-      <TouchableOpacity style={styles.exitSecureModeBtn} onPress={handleExitSecureMode}>
-        <Ionicons name="lock-open" size={20} color="#fff" />
-        <Text style={styles.exitSecureModeBtnText}>Exit Secure Mode</Text>
-      </TouchableOpacity>
-
-      {/* Bottom Lock Bar */}
-      <View style={styles.bottomBar}>
-        <Ionicons name="lock-closed" size={16} color="#FF3B30" />
-        <Text style={styles.bottomBarText}>Phone locked to Secure Folder</Text>
+      {/* Exit Secure Mode Button - PROMINENT & ALWAYS VISIBLE */}
+      <View style={styles.bottomSection}>
+        <ExitButton />
+        
+        {/* Bottom Lock Bar */}
+        <View style={styles.bottomBar}>
+          <Ionicons name="lock-closed" size={16} color="#FF3B30" />
+          <Text style={styles.bottomBarText}>Phone locked to Secure Folder</Text>
+        </View>
       </View>
 
-      {/* Restricted Alert */}
-      {showRestrictedAlert && (
-        <View style={styles.restrictedAlert}>
-          <Ionicons name="lock-closed" size={24} color="#fff" />
-          <Text style={styles.restrictedText}>PIN Required to Exit</Text>
-        </View>
-      )}
-
+      {renderRestrictedAlert()}
       {renderExitModal()}
       {renderPinningRequiredModal()}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -556,38 +645,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0f0f1a',
   },
-  loadingContainer: {
-    flex: 1,
-    backgroundColor: '#0f0f1a',
-  },
-  lockedHeader: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 59, 48, 0.1)',
-    paddingVertical: 12,
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
-    gap: 8,
-  },
-  lockedHeaderText: {
-    color: '#FF3B30',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  loadingText: {
-    color: '#888',
-    fontSize: 16,
-    marginTop: 16,
-  },
   secureHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingTop: Platform.OS === 'android' ? 10 : 0,
     paddingHorizontal: 20,
     paddingBottom: 16,
     backgroundColor: '#1a1a2e',
@@ -596,7 +658,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingTop: Platform.OS === 'android' ? 10 : 0,
     paddingHorizontal: 20,
     paddingBottom: 16,
     backgroundColor: '#1a1a2e',
@@ -673,7 +735,10 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  contentContainer: {
     padding: 20,
+    paddingBottom: 10,
   },
   sectionTitle: {
     fontSize: 16,
@@ -690,6 +755,11 @@ const styles = StyleSheet.create({
     color: '#666',
     fontSize: 16,
     marginTop: 12,
+  },
+  loadingText: {
+    color: '#888',
+    fontSize: 16,
+    marginTop: 16,
   },
   docGroup: {
     marginBottom: 24,
@@ -753,6 +823,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#34C759',
   },
+  bottomSection: {
+    backgroundColor: '#0f0f1a',
+    paddingTop: 8,
+  },
   exitSecureModeBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -763,11 +837,17 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 12,
     gap: 8,
+    // Add shadow for prominence
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   exitSecureModeBtnText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
   },
   docViewContainer: {
     flex: 1,
@@ -793,6 +873,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
+    zIndex: 1000,
   },
   restrictedText: {
     color: '#fff',
@@ -812,10 +893,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
   },
-  // Pinning Required Modal Styles
-  pinningModalOverlay: {
+  // Modal Styles
+  modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalScrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -829,16 +915,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   warningIconContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 90,
+    height: 90,
+    borderRadius: 45,
     backgroundColor: 'rgba(255, 59, 48, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
   },
   pinningModalTitle: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#FF3B30',
     marginBottom: 12,
@@ -883,11 +969,6 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     paddingLeft: 8,
   },
-  pinningModalScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   pinningTip: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -896,6 +977,7 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 20,
     gap: 10,
+    width: '100%',
   },
   pinningTipText: {
     flex: 1,
@@ -947,18 +1029,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   // Exit Modal Styles
-  exitModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
   exitModalContent: {
     backgroundColor: '#1a1a2e',
     borderRadius: 24,
     padding: 24,
-    width: '100%',
+    width: '90%',
     maxWidth: 340,
   },
   exitModalHeader: {
@@ -988,6 +1063,7 @@ const styles = StyleSheet.create({
   errorText: {
     color: '#FF3B30',
     fontSize: 14,
+    flex: 1,
   },
   pinInput: {
     backgroundColor: '#0f0f1a',
