@@ -10,12 +10,15 @@ import {
   BackHandler,
   Dimensions,
   ActivityIndicator,
+  StatusBar,
+  Linking,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as KeepAwake from 'expo-keep-awake';
+import * as ScreenOrientation from 'expo-screen-orientation';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width } = Dimensions.get('window');
@@ -37,24 +40,37 @@ export default function SecureMode() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    loadData();
-    KeepAwake.activateKeepAwakeAsync();
-
+    initSecureMode();
+    
     return () => {
       KeepAwake.deactivateKeepAwake();
     };
   }, []);
 
-  // Block back button on Android
+  const initSecureMode = async () => {
+    // Keep screen awake
+    await KeepAwake.activateKeepAwakeAsync();
+    
+    // Lock orientation
+    await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
+    
+    // Hide status bar for more immersive lock
+    StatusBar.setHidden(true);
+    
+    // Load data
+    await loadData();
+  };
+
+  // Block ALL back button attempts
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
         showRestrictedMessage();
-        return true; // Prevent default back behavior
+        return true; // ALWAYS prevent back
       };
 
-      BackHandler.addEventListener('hardwareBackPress', onBackPress);
-      return () => BackHandler.removeEventListener('hardwareBackPress', onBackPress);
+      const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+      return () => subscription.remove();
     }, [])
   );
 
@@ -65,15 +81,11 @@ export default function SecureMode() {
       const name = await AsyncStorage.getItem('current_officer_name');
       const badge = await AsyncStorage.getItem('current_officer_badge');
 
-      console.log('Secure Mode - Officer:', name, 'Badge:', badge, 'UserID:', userId);
-
       if (name) setOfficerName(name);
       if (badge) setBadgeNumber(badge);
 
       if (userId) {
-        console.log('Fetching documents from:', `${API_URL}/api/documents/${userId}`);
         const response = await axios.get(`${API_URL}/api/documents/${userId}`);
-        console.log('Documents loaded:', response.data.length);
         setDocuments(response.data);
       }
     } catch (error) {
@@ -144,6 +156,11 @@ export default function SecureMode() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
+        <StatusBar hidden />
+        <View style={styles.lockedHeader}>
+          <Ionicons name="lock-closed" size={16} color="#FF3B30" />
+          <Text style={styles.lockedHeaderText}>SECURE MODE ACTIVE</Text>
+        </View>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Loading secure documents...</Text>
       </View>
@@ -154,6 +171,7 @@ export default function SecureMode() {
   if (selectedDoc) {
     return (
       <View style={styles.container}>
+        <StatusBar hidden />
         {/* Header with lock icon */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => setSelectedDoc(null)} style={styles.backButton}>
@@ -177,8 +195,8 @@ export default function SecureMode() {
         {/* Restricted Alert */}
         {showRestrictedAlert && (
           <View style={styles.restrictedAlert}>
-            <Ionicons name="lock-closed" size={24} color="#FF3B30" />
-            <Text style={styles.restrictedText}>Restricted Access - PIN Required to Exit</Text>
+            <Ionicons name="lock-closed" size={24} color="#fff" />
+            <Text style={styles.restrictedText}>PIN Required to Exit Secure Mode</Text>
           </View>
         )}
       </View>
@@ -188,28 +206,31 @@ export default function SecureMode() {
   // Main secure mode view
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      <StatusBar hidden />
+      
+      {/* Secure Mode Header */}
+      <View style={styles.secureHeader}>
         <View style={styles.secureBadge}>
           <Ionicons name="shield-checkmark" size={20} color="#34C759" />
-          <Text style={styles.secureBadgeText}>SECURE MODE</Text>
+          <Text style={styles.secureBadgeText}>SECURE MODE ACTIVE</Text>
         </View>
         <TouchableOpacity onPress={handleUnlock} style={styles.lockButton}>
           <Ionicons name="lock-closed" size={20} color="#FF3B30" />
         </TouchableOpacity>
       </View>
 
-      {/* Officer Info */}
-      <View style={styles.officerInfo}>
-        <View style={styles.officerRow}>
-          <Ionicons name="person" size={16} color="#888" />
-          <Text style={styles.officerLabel}>Officer:</Text>
-          <Text style={styles.officerValue}>{officerName || 'Unknown'}</Text>
+      {/* Officer Info Card */}
+      <View style={styles.officerCard}>
+        <View style={styles.officerHeader}>
+          <Ionicons name="person-circle" size={40} color="#007AFF" />
+          <View style={styles.officerDetails}>
+            <Text style={styles.officerName}>{officerName || 'Officer'}</Text>
+            <Text style={styles.officerBadge}>Badge #{badgeNumber || 'N/A'}</Text>
+          </View>
         </View>
-        <View style={styles.officerRow}>
-          <Ionicons name="card" size={16} color="#888" />
-          <Text style={styles.officerLabel}>Badge:</Text>
-          <Text style={styles.officerValue}>{badgeNumber || 'Unknown'}</Text>
+        <View style={styles.accessInfo}>
+          <Ionicons name="time" size={14} color="#888" />
+          <Text style={styles.accessTime}>Access logged at {new Date().toLocaleTimeString()}</Text>
         </View>
       </View>
 
@@ -220,7 +241,7 @@ export default function SecureMode() {
         {Object.keys(groupedDocs).length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="document-outline" size={48} color="#444" />
-            <Text style={styles.emptyText}>No documents available</Text>
+            <Text style={styles.emptyText}>No documents uploaded</Text>
           </View>
         ) : (
           Object.entries(groupedDocs).map(([type, docs]) => (
@@ -228,6 +249,7 @@ export default function SecureMode() {
               <View style={styles.docGroupHeader}>
                 <Ionicons name={getDocTypeIcon(type) as any} size={18} color="#007AFF" />
                 <Text style={styles.docGroupTitle}>{getDocTypeLabel(type)}</Text>
+                <Text style={styles.docCount}>{docs.length}</Text>
               </View>
               {docs.map((doc) => (
                 <TouchableOpacity
@@ -257,22 +279,28 @@ export default function SecureMode() {
             </View>
           ))
         )}
+
+        {/* Exit Instructions */}
+        <View style={styles.exitInstructions}>
+          <Ionicons name="information-circle" size={20} color="#FF9500" />
+          <Text style={styles.exitText}>
+            To exit secure mode, tap the lock icon and enter the device owner's PIN.
+          </Text>
+        </View>
       </ScrollView>
 
       {/* Restricted Alert */}
       {showRestrictedAlert && (
         <View style={styles.restrictedAlert}>
-          <Ionicons name="lock-closed" size={24} color="#FF3B30" />
-          <Text style={styles.restrictedText}>Restricted Access - PIN Required to Exit</Text>
+          <Ionicons name="lock-closed" size={24} color="#fff" />
+          <Text style={styles.restrictedText}>PIN Required to Exit Secure Mode</Text>
         </View>
       )}
 
-      {/* Bottom Info */}
-      <View style={styles.bottomInfo}>
-        <Ionicons name="information-circle" size={16} color="#666" />
-        <Text style={styles.bottomInfoText}>
-          Tap the lock icon to exit secure mode (PIN required)
-        </Text>
+      {/* Bottom Lock Bar */}
+      <View style={styles.bottomBar}>
+        <Ionicons name="lock-closed" size={16} color="#FF3B30" />
+        <Text style={styles.bottomBarText}>Phone locked to Secure Folder</Text>
       </View>
     </View>
   );
@@ -289,16 +317,43 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  lockedHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    paddingVertical: 12,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    gap: 8,
+  },
+  lockedHeaderText: {
+    color: '#FF3B30',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
   loadingText: {
     color: '#888',
     fontSize: 16,
     marginTop: 16,
   },
+  secureHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    backgroundColor: '#1a1a2e',
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
     paddingHorizontal: 20,
     paddingBottom: 16,
     backgroundColor: '#1a1a2e',
@@ -318,7 +373,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(52, 199, 89, 0.1)',
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 20,
     gap: 6,
   },
@@ -328,34 +383,50 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   lockButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: 'rgba(255, 59, 48, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  officerInfo: {
+  officerCard: {
     backgroundColor: '#1a1a2e',
     marginHorizontal: 20,
     marginTop: 16,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    gap: 8,
   },
-  officerRow: {
+  officerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
-  officerLabel: {
-    color: '#888',
-    fontSize: 14,
+  officerDetails: {
+    flex: 1,
   },
-  officerValue: {
+  officerName: {
+    fontSize: 18,
+    fontWeight: 'bold',
     color: '#fff',
+  },
+  officerBadge: {
     fontSize: 14,
-    fontWeight: '600',
+    color: '#007AFF',
+    marginTop: 2,
+  },
+  accessInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#333',
+    gap: 6,
+  },
+  accessTime: {
+    fontSize: 12,
+    color: '#888',
   },
   content: {
     flex: 1,
@@ -387,9 +458,19 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   docGroupTitle: {
+    flex: 1,
     fontSize: 14,
     fontWeight: '600',
     color: '#007AFF',
+  },
+  docCount: {
+    backgroundColor: 'rgba(0, 122, 255, 0.2)',
+    color: '#007AFF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    fontSize: 12,
+    fontWeight: '600',
   },
   docItem: {
     flexDirection: 'row',
@@ -429,6 +510,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#34C759',
   },
+  exitInstructions: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(255, 149, 0, 0.1)',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 8,
+    marginBottom: 20,
+    gap: 12,
+  },
+  exitText: {
+    flex: 1,
+    color: '#FF9500',
+    fontSize: 13,
+    lineHeight: 18,
+  },
   docViewContainer: {
     flex: 1,
   },
@@ -443,32 +540,38 @@ const styles = StyleSheet.create({
   },
   restrictedAlert: {
     position: 'absolute',
-    top: '50%',
+    top: '45%',
     left: 20,
     right: 20,
-    backgroundColor: 'rgba(255, 59, 48, 0.95)',
+    backgroundColor: '#FF3B30',
     borderRadius: 16,
     padding: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 12,
+    shadowColor: '#FF3B30',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   restrictedText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
-  bottomInfo: {
+  bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 16,
+    backgroundColor: 'rgba(255, 59, 48, 0.1)',
+    paddingVertical: 14,
     gap: 8,
-    backgroundColor: '#1a1a2e',
   },
-  bottomInfoText: {
-    color: '#666',
-    fontSize: 12,
+  bottomBarText: {
+    color: '#FF3B30',
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
