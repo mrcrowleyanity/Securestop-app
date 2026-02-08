@@ -12,7 +12,7 @@ from datetime import datetime
 import os
 
 # Get backend URL from frontend .env
-BACKEND_URL = "https://secure-id-2.preview.emergentagent.com/api"
+BACKEND_URL = "https://secure-id-check-2.preview.emergentagent.com/api"
 
 class SecureFolderAPITester:
     def __init__(self):
