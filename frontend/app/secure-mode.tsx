@@ -390,17 +390,22 @@ export default function SecureMode() {
           <Ionicons name="lock-closed" size={16} color="#FF3B30" />
           <Text style={styles.lockedHeaderText}>SECURE MODE ACTIVE</Text>
         </View>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading secure documents...</Text>
+        
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>Loading secure documents...</Text>
+        </View>
         
         {/* Exit Button - always visible */}
-        <TouchableOpacity 
-          style={[styles.exitSecureModeBtn, { position: 'absolute', bottom: 60, left: 20, right: 20 }]} 
-          onPress={handleExitSecureMode}
-        >
-          <Ionicons name="lock-open" size={20} color="#fff" />
-          <Text style={styles.exitSecureModeBtnText}>Exit Secure Mode</Text>
-        </TouchableOpacity>
+        <View style={{ paddingHorizontal: 20, paddingBottom: 20 }}>
+          <TouchableOpacity 
+            style={styles.exitSecureModeBtn} 
+            onPress={handleExitSecureMode}
+          >
+            <Ionicons name="lock-open" size={20} color="#fff" />
+            <Text style={styles.exitSecureModeBtnText}>Exit Secure Mode</Text>
+          </TouchableOpacity>
+        </View>
         
         {renderPinningRequiredModal()}
         {renderExitModal()}
