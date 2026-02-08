@@ -64,12 +64,15 @@ export default function OfficerLogin() {
         await AsyncStorage.setItem('current_location', JSON.stringify(location));
       }
 
-      // Navigate to secure mode
-      router.replace('/secure-mode');
+      console.log('Officer data saved, navigating to secure mode...');
+      
+      // Navigate to secure mode with delay to ensure data is saved
+      setTimeout(() => {
+        router.replace('/secure-mode');
+      }, 100);
     } catch (error) {
       console.error('Error:', error);
       Alert.alert('Error', 'Failed to proceed. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
