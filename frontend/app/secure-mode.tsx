@@ -72,13 +72,7 @@ export default function SecureMode() {
     
     return () => {
       if (Platform.OS === 'android' || Platform.OS === 'ios') {
-        try {
-          if (KeepAwake) {
-            KeepAwake.deactivateKeepAwake();
-          }
-        } catch (error) {
-          // Ignore
-        }
+        deactivateKeepAwake();
         try {
           StatusBar.setHidden(false);
         } catch (error) {
