@@ -53,6 +53,7 @@ export default function SecureMode() {
 
   useEffect(() => {
     initSecureMode();
+        setShowPinningRequired(true);
     
     // Failsafe timeout
     const failsafe = setTimeout(() => {
@@ -66,6 +67,7 @@ export default function SecureMode() {
     };
   }, []);
 
+
   const initSecureMode = async () => {
     try {
       // Check if user has confirmed pinning setup
@@ -73,7 +75,7 @@ export default function SecureMode() {
       
       if (Platform.OS === 'android' && !hasConfirmedPinning) {
         // Check if we're in Expo Go (limited native support)
-        setShowPinningRequired(true);
+     setShowPinningRequired(true);
       } else {
         setPinningConfirmed(true);
       }
@@ -381,7 +383,7 @@ export default function SecureMode() {
 
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={() => router.replace('/home')}
+              onPress={() => { setShowPinningRequired(false); handleExitSecureMode(); 
               activeOpacity={0.7}
             >
               <Text style={styles.cancelButtonText}>Cancel & Go Back</Text>
