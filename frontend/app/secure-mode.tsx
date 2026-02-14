@@ -53,7 +53,6 @@ export default function SecureMode() {
 
   useEffect(() => {
     initSecureMode();
-        setShowPinningRequired(true);
     
     // Failsafe timeout
     const failsafe = setTimeout(() => {
