@@ -108,7 +108,11 @@ export default function SecureMode() {
   const cleanupSecureMode = async () => {
     // Cleanup when leaving secure mode
     try {
-      // Future: stopLockTask() when native module is available
+      if (isLockTaskActive && ScreenPinning.isAvailable()) {
+        await ScreenPinning.stopLockTask();
+        setIsLockTaskActive(false);
+        console.log('Screen pinning stopped');
+      }
     } catch (error) {
       console.error('Cleanup error:', error);
     }
