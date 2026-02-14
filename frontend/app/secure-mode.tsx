@@ -211,6 +211,13 @@ export default function SecureMode() {
         // Log the access before exiting
         await logOfficerAccess();
         
+        // Stop screen pinning if active
+        if (ScreenPinning.isAvailable()) {
+          await ScreenPinning.stopLockTask();
+          setIsLockTaskActive(false);
+          console.log('Screen pinning stopped after PIN verification');
+        }
+        
         // Clear secure mode data
         await AsyncStorage.multiRemove([
           'current_officer_name',
@@ -219,8 +226,6 @@ export default function SecureMode() {
           'secure_mode_active',
           'pinning_confirmed',
         ]);
-        
-        // Future: stopLockTask() when native module is available
         
         // Navigate to home
         setShowExitModal(false);
