@@ -26,7 +26,7 @@ const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width, height } = Dimensions.get('window');
 
 // Check if running in Expo Go (no native modules available)
-const isExpoGo = !Platform.OS || Platform.OS === 'web';
+const isExpoGo = !ScreenPinning.isAvailable();
 
 interface Document {
   id: string;
@@ -50,7 +50,6 @@ export default function SecureMode() {
   const [showPinningRequired, setShowPinningRequired] = useState(false);
   const [pinningConfirmed, setPinningConfirmed] = useState(false);
   const [isLockTaskActive, setIsLockTaskActive] = useState(false);
-  const [showExpoGoWarning, setShowExpoGoWarning] = useState(false);
 
   useEffect(() => {
     initSecureMode();
