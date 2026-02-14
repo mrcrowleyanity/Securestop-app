@@ -382,7 +382,7 @@ export default function SecureMode() {
 
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={() => { setShowPinningRequired(false); handleExitSecureMode(); 
+              onPress={() => { setShowPinningRequired(false); handleExitSecureMode(); }}
               activeOpacity={0.7}
             >
               <Text style={styles.cancelButtonText}>Cancel & Go Back</Text>
