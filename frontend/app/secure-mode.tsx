@@ -72,9 +72,27 @@ export default function SecureMode() {
       // Check if user has confirmed pinning setup
       const hasConfirmedPinning = await AsyncStorage.getItem('pinning_confirmed');
       
-      if (Platform.OS === 'android' && !hasConfirmedPinning) {
-        // Check if we're in Expo Go (limited native support)
-     setShowPinningRequired(true);
+      if (Platform.OS === 'android') {
+        // Try to start native screen pinning if available
+        if (ScreenPinning.isAvailable()) {
+          const pinningStarted = await ScreenPinning.startLockTask();
+          if (pinningStarted) {
+            setIsLockTaskActive(true);
+            setPinningConfirmed(true);
+            console.log('Native screen pinning activated');
+          } else if (!hasConfirmedPinning) {
+            // Native pinning failed, show manual setup instructions
+            setShowPinningRequired(true);
+          } else {
+            setPinningConfirmed(true);
+          }
+        } else if (!hasConfirmedPinning) {
+          // Running in Expo Go - show manual setup instructions
+          console.log('Running in Expo Go - native screen pinning not available');
+          setShowPinningRequired(true);
+        } else {
+          setPinningConfirmed(true);
+        }
       } else {
         setPinningConfirmed(true);
       }
