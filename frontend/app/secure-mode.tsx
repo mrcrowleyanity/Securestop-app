@@ -20,6 +20,7 @@ import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import ScreenPinning from '../modules/screen-pinning';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width, height } = Dimensions.get('window');
