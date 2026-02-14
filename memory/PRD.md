@@ -1,171 +1,166 @@
 # Secure Folder App - Product Requirements Document
 
 ## Overview
-A secure folder mobile application primarily for Android (Samsung S24) that allows users to securely present electronic documentation (ID, vehicle registration, etc.) to police officers during encounters.
+A secure folder mobile application for Android that allows users to securely present electronic documentation (ID, vehicle registration, etc.) to police officers during encounters.
 
 ## Core Requirements
 
-### 1. Secure Mode ✅ IMPLEMENTED
-- Locked-down mode that displays documents to officers
-- Officer must enter name and badge number before viewing documents
-- Back button is blocked in secure mode
-- Exit requires PIN verification via prominent "Exit Secure Mode" button
+### 1. Secure Mode
+- **Screen Pinning**: Lock the app to the screen using Android's `startLockTask()` (kiosk mode)
+- **PIN Exit**: Require device owner's PIN to exit secure mode
+- **Back Button Block**: Prevent all attempts to leave the app during secure mode
 
-### 2. Screen Pinning (Kiosk Mode) ⚠️ REQUIRES DEV BUILD
-- **Current Status**: Manual setup required in Expo Go
-- **Target**: Native Lock Task Mode with development build
-- Shows mandatory modal requiring user to enable screen pinning
-- "Open Settings" button to navigate to security settings
-- Instructions for Samsung S24 specific paths
-
-### 3. Exit Secure Mode ✅ IMPLEMENTED  
-- Prominent RED "Exit Secure Mode" button - ALWAYS visible
-- Opens PIN verification modal
-- On correct PIN: logs officer access, clears session data, returns to home
-- Button is visible even during document loading
-
-### 4. Officer Login ✅ IMPLEMENTED
-- Officers must enter name and badge number
-- No cancel button - credentials are mandatory
+### 2. Officer Authentication
+- Officers must enter name and badge number before viewing documents
 - All access is logged with timestamp and location
-- Session validation on screen load
+- Access history exportable to PDF
 
-### 5. Access Logging ✅ IMPLEMENTED
-- Logs officer name, badge number, timestamp, location
-- Documents viewed tracking
-- Export to PDF functionality (TODO)
+### 3. Document Management
+- Upload documents via camera scan or gallery
+- Categorize: ID, vehicle registration, gun registration, birth certificate, disability, permits, job badge, immigration, social security, insurance
+- View and delete documents
 
-### 6. Document Storage ✅ IMPLEMENTED
-- Categories: ID/Driver's License, Birth Certificate, Vehicle Registration, Gun Registration, Disability Paperwork, Permits, Job Badge, Immigration, Social Security, Insurance
-- Upload via camera, gallery, or file picker
-- Category-based folder view
+### 4. Security Features
+- User PIN for app setup and secure mode exit
+- Failed PIN attempt logging
+- Email alerts with intruder photo on failed attempts (premium)
+- Location logging for all access events
 
-### 7. Security Alerts ✅ IMPLEMENTED
-- Photo capture on failed PIN attempt using front camera
-- Email alert with photo, location, and timestamp via SendGrid
+### 5. Permissions Required
+- Camera (document scanning, intruder photos)
+- Microphone (audio recording - premium)
+- Location (access logging)
+- Storage (document storage)
 
 ## Technical Architecture
 
-### Frontend (React Native/Expo)
-- Expo SDK 54
-- Expo Router for navigation
-- AsyncStorage for local session management
-- SafeAreaView for proper layout
-- StatusBar configuration
+### Frontend (Expo/React Native)
+- **Framework**: Expo SDK 53+ with Expo Router
+- **Build**: EAS Build for development builds (required for native modules)
+- **Target Device**: Samsung S24 (Android)
 
 ### Backend (FastAPI)
-- MongoDB for data storage
-- SendGrid for email alerts
-- PIN hashing with SHA-256
+- **Database**: MongoDB
+- **APIs**: User management, documents, access logs, failed attempts
 
-### Native Modules (Development Build)
-- Screen Pinning module for Lock Task Mode
-- Audio recording for evidence capture
-- Background location tracking
+### Native Modules
+- **ScreenPinningModule**: Android native module for Lock Task Mode
+  - `startLockTask()`: Pin app to screen
+  - `stopLockTask()`: Unpin on PIN verification
+  - `isInLockTaskMode()`: Check pinning status
 
-## Permissions Required
-- Camera (document scanning, intruder photos)
-- Microphone (audio recording)  
-- Location (access logging)
-- Storage (document storage)
-- Contacts (emergency contacts)
-- Foreground Service (background operations)
-- Wake Lock (keep screen on)
+## Implementation Status
 
-## Key Fixes Applied (Feb 2026)
+### Completed ✅
+- [x] User registration and login with PIN
+- [x] Document upload (gallery)
+- [x] Document viewing by category
+- [x] Document deletion
+- [x] Officer login screen with name/badge
+- [x] Secure mode UI with exit button
+- [x] Back button blocking in secure mode
+- [x] PIN verification to exit secure mode
+- [x] Access logging API
+- [x] Native ScreenPinning module (Kotlin)
+- [x] Android manifest with permissions
+- [x] EAS Build configuration
+- [x] TypeScript compilation clean
 
-### Exit Button Visibility
-- Restructured secure-mode.tsx layout
-- Exit button now in dedicated `bottomSection` with shadow
-- Button visible during loading, document view, and main view
-- Added testID for automation testing
+### In Progress 🔄
+- [ ] Test development build on Samsung S24
+- [ ] Camera document scanner integration
 
-### AsyncStorage Authentication
-- Added session validation in officer-login.tsx
-- Using `multiSet` for atomic operations
-- Added error handling for storage failures
-- Session verification on app state changes
+### Pending 📋
+- [ ] PDF export for access history
+- [ ] Email alerts with SendGrid
+- [ ] Premium features (background recording)
 
-### Navigation Fixes
-- Updated _layout.tsx with proper screen options
-- Disabled gestures on secure screens
-- Added fade animation for secure-mode transition
-- AppState listener for background/foreground handling
+## Key Files
 
-### Development Build Setup
-- Created eas.json configuration
-- Updated app.json with all permissions
-- Created screen-pinning module interface
-- Added DEV_BUILD_GUIDE.md documentation
-
-## File Structure
 ```
-/app/frontend
+/app/frontend/
 ├── app/
-│   ├── _layout.tsx         - Navigation config
-│   ├── index.tsx           - Splash/auth check
-│   ├── setup.tsx           - User registration
-│   ├── home.tsx            - Main dashboard
-│   ├── secure-mode.tsx     - Secure document viewer
-│   ├── officer-login.tsx   - Officer authentication
-│   ├── documents.tsx       - Document management
-│   ├── add-document.tsx    - Document upload
-│   ├── access-history.tsx  - Access logs
-│   ├── settings.tsx        - User settings
-│   └── unlock.tsx          - PIN unlock
+│   ├── secure-mode.tsx      # Main secure mode with pinning
+│   ├── officer-login.tsx    # Officer credential entry
+│   ├── home.tsx            # Home screen with menu
+│   ├── setup.tsx           # User registration/login
+│   └── _layout.tsx         # Root navigation
 ├── modules/
-│   └── screen-pinning/     - Native module interface
-├── app.json                - Expo config
-├── eas.json                - EAS Build config
-├── package.json            - Dependencies
-└── DEV_BUILD_GUIDE.md      - Build instructions
+│   └── screen-pinning/index.ts  # Native module interface
+├── android/
+│   └── app/src/main/java/com/securestop/
+│       ├── screenpinning/
+│       │   ├── ScreenPinningModule.kt
+│       │   └── ScreenPinningPackage.kt
+│       ├── MainActivity.kt
+│       └── MainApplication.kt
+├── app.json                # Expo config with permissions
+└── eas.json               # EAS build profiles
 ```
 
-## TODO / Remaining Tasks
+## Build Instructions
 
-### P0 - Critical
-1. ✅ Exit button visibility - FIXED
-2. ✅ AsyncStorage session fixes - FIXED
-3. ⏳ Development build for native screen pinning
-
-### P1 - High Priority
-1. Export Access History to PDF
-2. Native screen pinning implementation
-3. Background voice recording
-
-### P2 - Medium Priority  
-1. Stripe Payments Integration (postponed)
-2. Emergency contact integration
-3. Document scanner with cropping
-
-### P3 - Future
-1. Background Voice Recorder (premium)
-2. Downloadable Recordings (premium)
-3. Cloud backup
-
-## Testing on Samsung S24
-
-### Current (Expo Go)
-1. Scan QR code in Expo Go
-2. Screen pinning requires manual setup in Settings
-3. All basic features work
-
-### Target (Development Build)
-1. Install development APK
-2. Native screen pinning enabled
-3. All premium features available
-
-## Build Commands
+### Development Build (for Samsung S24)
 ```bash
-# Development build
 cd /app/frontend
-npx expo prebuild
+npm install -g eas-cli
+eas login
 eas build --profile development --platform android
+```
 
-# Run with dev client
+### Running Development Server
+```bash
 npx expo start --dev-client
 ```
 
-## Test Credentials
-- No pre-configured credentials required
-- Users create their own email/PIN during setup
+## API Endpoints
+
+- `POST /api/users` - Create user
+- `POST /api/users/verify-pin` - Verify PIN
+- `GET /api/users/by-email/{email}` - Get user by email
+- `POST /api/documents` - Upload document
+- `GET /api/documents/{user_id}` - Get user documents
+- `DELETE /api/documents/{doc_id}` - Delete document
+- `POST /api/access-log` - Log officer access
+- `GET /api/access-log/{user_id}` - Get access history
+
+## Database Schema
+
+### users
+```json
+{
+  "id": "uuid",
+  "email": "string",
+  "pin_hash": "string",
+  "created_at": "datetime",
+  "is_premium": "boolean"
+}
+```
+
+### documents
+```json
+{
+  "id": "uuid",
+  "user_id": "string",
+  "doc_type": "string",
+  "name": "string",
+  "image_base64": "string",
+  "created_at": "datetime"
+}
+```
+
+### access_logs
+```json
+{
+  "id": "uuid",
+  "user_id": "string",
+  "officer_name": "string",
+  "badge_number": "string",
+  "timestamp": "datetime",
+  "latitude": "float",
+  "longitude": "float"
+}
+```
+
+---
+Last updated: 2026-02-14
