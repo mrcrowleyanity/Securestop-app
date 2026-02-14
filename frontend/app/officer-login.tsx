@@ -126,7 +126,7 @@ export default function OfficerLogin() {
       }
 
       // Store officer info for the secure mode session
-      const dataToStore = [
+      const dataToStore: [string, string][] = [
         ['current_officer_name', officerName.trim()],
         ['current_officer_badge', badgeNumber.trim()],
         ['secure_mode_active', 'true'],
