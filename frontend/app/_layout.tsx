@@ -95,7 +95,7 @@ export default function RootLayout() {
         <Stack.Screen 
           name="home" 
           options={{ 
-            title: 'Secure Folder', 
+            title: 'Secure Stop', 
             headerShown: false,
             // Prevent going back to setup/login from home
             gestureEnabled: false,
