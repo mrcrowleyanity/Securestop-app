@@ -370,7 +370,7 @@ export default function Setup() {
           <View style={styles.logoCircle}>
             <Ionicons name="shield-checkmark" size={40} color="#007AFF" />
           </View>
-          <Text style={styles.headerTitle}>Secure Folder</Text>
+          <Text style={styles.headerTitle}>Secure Stop</Text>
         </View>
 
         {mode === 'register' && (

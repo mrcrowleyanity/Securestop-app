@@ -69,7 +69,7 @@ export default function Home() {
           </View>
           <Text style={styles.modalTitle}>Setup Screen Pinning</Text>
           <Text style={styles.modalSubtitle}>
-            Screen pinning locks your phone to the Secure Folder app during police encounters.
+            Screen pinning locks your phone to the Secure Stop app during police encounters.
           </Text>
           
           <View style={styles.stepsContainer}>
@@ -163,7 +163,7 @@ export default function Home() {
           <View style={styles.logoSmall}>
             <Ionicons name="shield-checkmark" size={24} color="#007AFF" />
           </View>
-          <Text style={styles.headerTitle}>Secure Folder</Text>
+          <Text style={styles.headerTitle}>Secure Stop</Text>
         </View>
         <Text style={styles.headerEmail}>{userEmail}</Text>
       </View>

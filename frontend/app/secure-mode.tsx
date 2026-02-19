@@ -657,7 +657,7 @@ export default function SecureMode() {
         {/* Bottom Lock Bar */}
         <View style={styles.bottomBar}>
           <Ionicons name="lock-closed" size={16} color="#FF3B30" />
-          <Text style={styles.bottomBarText}>Phone locked to Secure Folder</Text>
+          <Text style={styles.bottomBarText}>Phone locked to Secure Stop</Text>
         </View>
       </View>
 

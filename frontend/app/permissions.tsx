@@ -273,7 +273,7 @@ export default function PermissionsSetup() {
           </View>
           <Text style={styles.title}>App Permissions</Text>
           <Text style={styles.subtitle}>
-            Secure Folder needs these permissions to protect you during police encounters
+            Secure Stop needs these permissions to protect you during police encounters
           </Text>
         </View>
 

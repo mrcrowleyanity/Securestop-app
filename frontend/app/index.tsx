@@ -48,7 +48,7 @@ export default function Index() {
         <View style={styles.iconCircle}>
           <Ionicons name="shield-checkmark" size={80} color="#007AFF" />
         </View>
-        <Text style={styles.title}>Secure Folder</Text>
+        <Text style={styles.title}>Secure Stop</Text>
         <Text style={styles.subtitle}>Your documents, protected</Text>
       </View>
       
