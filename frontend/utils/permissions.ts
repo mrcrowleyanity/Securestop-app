@@ -116,7 +116,7 @@ export async function requestLocationPermission(): Promise<PermissionResult> {
  */
 export async function requestCameraPermission(): Promise<PermissionResult> {
   try {
-    const { status, canAskAgain } = await Camera.requestCameraPermissionsAsync();
+    const { status, canAskAgain } = await requestCameraPermissionsAsync();
     return {
       permission: 'camera',
       granted: status === 'granted',
