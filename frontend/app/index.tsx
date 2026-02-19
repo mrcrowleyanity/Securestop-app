@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
+import Permissions from '../utils/permissions';
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
@@ -13,10 +14,20 @@ export default function Index() {
 
   const checkAuth = async () => {
     try {
-      const userId = await AsyncStorage.getItem('user_id');
+      // Check if permissions have been set up
+      const hasCheckedPermissions = await Permissions.hasCheckedPermissions();
       
       // Small delay for splash effect
       await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      if (!hasCheckedPermissions) {
+        // First launch - go to permissions setup
+        router.replace('/permissions');
+        return;
+      }
+      
+      // Check if user is authenticated
+      const userId = await AsyncStorage.getItem('user_id');
       
       if (userId) {
         router.replace('/home');
@@ -25,7 +36,7 @@ export default function Index() {
       }
     } catch (error) {
       console.error('Auth check error:', error);
-      router.replace('/setup');
+      router.replace('/permissions');
     } finally {
       setIsLoading(false);
     }
