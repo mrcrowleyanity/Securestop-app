@@ -22,6 +22,9 @@ import { Audio } from 'expo-av';
 import * as IntentLauncher from 'expo-intent-launcher';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// Camera permission functions from the Camera object
+const { getCameraPermissionsAsync, requestCameraPermissionsAsync } = Camera;
+
 export interface PermissionStatus {
   location: 'granted' | 'denied' | 'undetermined';
   camera: 'granted' | 'denied' | 'undetermined';
