@@ -64,7 +64,7 @@ export async function checkAllPermissions(): Promise<PermissionStatus> {
                       locationStatus.canAskAgain ? 'undetermined' : 'denied';
 
     // Camera
-    const cameraStatus = await Camera.getCameraPermissionsAsync();
+    const cameraStatus = await getCameraPermissionsAsync();
     status.camera = cameraStatus.granted ? 'granted' : 
                     cameraStatus.canAskAgain ? 'undetermined' : 'denied';
 
