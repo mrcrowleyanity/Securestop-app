@@ -32,11 +32,6 @@
     "android": {
       "package": "com.securestop.app",
       "versionCode": 1
-    },
-    "extra": {
-      "eas": {
-        "projectId": "b45a7c36-c835-4b57-934c-03a5886509ab"
-      }
     }
   }
 }
