@@ -1,7 +1,4 @@
 {
-  "cli": {
-    "version": ">= 10.0.0"
-  },
   "build": {
     "development": {
       "developmentClient": true,
@@ -18,6 +15,7 @@
     },
     "production": {
       "distribution": "store",
+      "runTests": false,
       "android": {
         "buildType": "app-bundle"
       }
