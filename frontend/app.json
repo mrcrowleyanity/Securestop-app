@@ -7,10 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "securestop",
     "userInterfaceStyle": "dark",
-    "newArchEnabled": true,
-    "developmentClient": {
-      "silentLaunch": true
-    },
     "splash": {
       "image": "./assets/images/splash-image.png",
       "resizeMode": "contain",
@@ -18,20 +14,18 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.securestop.app",
-      "buildNumber": "1.0.0",
-      "infoPlist": {
-        "NSCameraUsageDescription": "Capture security photos on failed PIN attempts and scan documents",
-        "NSPhotoLibraryUsageDescription": "Upload documents from your gallery",
-        "NSLocationWhenInUseUsageDescription": "Log location during document access for security",
-        "NSLocationAlwaysUsageDescription": "Log location during document access for security",
-        "NSMicrophoneUsageDescription": "Record audio during secure mode for evidence",
-        "NSContactsUsageDescription": "Access emergency contacts"
-      }
+      "bundleIdentifier": "com.securestop.app"
     },
     "android": {
       "package": "com.securestop.app",
-      "versionCode": 1
-    }
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#0f0f1a"
+      }
+    },
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
