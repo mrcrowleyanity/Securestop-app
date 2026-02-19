@@ -78,6 +78,14 @@ export default function RootLayout() {
           }} 
         />
         <Stack.Screen 
+          name="permissions" 
+          options={{ 
+            title: 'Permissions', 
+            headerShown: false,
+            gestureEnabled: false,
+          }} 
+        />
+        <Stack.Screen 
           name="setup" 
           options={{ 
             title: 'Setup', 
