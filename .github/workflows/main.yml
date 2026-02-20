@@ -27,6 +27,29 @@ jobs:
         working-directory: ./frontend
         run: npm install --legacy-peer-deps
 
+      - name: Generate Android Keystore
+        working-directory: ./frontend
+        run: |
+          keytool -genkeypair -v \
+            -keystore android.keystore \
+            -alias my-key-alias \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000 \
+            -storepass android \
+            -keypass android \
+            -dname "CN=Securestop, OU=Dev, O=Securestop, L=NJ, S=NJ, C=US"
+          echo '{
+            "android": {
+              "keystore": {
+                "keystorePath": "android.keystore",
+                "keystorePassword": "android",
+                "keyAlias": "my-key-alias",
+                "keyPassword": "android"
+              }
+            }
+          }' > credentials.json
+
       - name: Build Android dev client (APK)
         working-directory: ./frontend
-        run: yes | eas build --profile development --platform android
+        run: eas build --profile development --platform android --local --output ./build.apk
