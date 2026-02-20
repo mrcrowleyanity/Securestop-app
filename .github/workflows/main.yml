@@ -37,10 +37,11 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Generate Gradle Wrapper JAR
-        working-directory: ./frontend/android
+      - name: Download Gradle Wrapper JAR
         run: |
-          gradle wrapper --gradle-version=$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | sed 's/.*gradle-\(.*\)-bin.zip/\1/')
+          GRADLE_VERSION=$(grep distributionUrl frontend/android/gradle/wrapper/gradle-wrapper.properties | sed 's/.*gradle-\(.*\)-bin.zip/\1/')
+          mkdir -p frontend/android/gradle/wrapper
+          curl -L "https://github.com/gradle/gradle/raw/refs/tags/v${GRADLE_VERSION}/gradle/wrapper/gradle-wrapper.jar" -o frontend/android/gradle/wrapper/gradle-wrapper.jar
 
       - name: Generate Android Keystore
         working-directory: ./frontend
