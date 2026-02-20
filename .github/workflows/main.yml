@@ -8,6 +8,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      NPM_CONFIG_LEGACY_PEER_DEPS: "true"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
@@ -25,7 +27,9 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./frontend
-        run: npm install --legacy-peer-deps
+        run: |
+          echo "legacy-peer-deps=true" >> .npmrc
+          npm install --legacy-peer-deps
 
       - name: Generate Android Keystore
         working-directory: ./frontend
