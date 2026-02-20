@@ -31,6 +31,17 @@ jobs:
           echo "legacy-peer-deps=true" >> .npmrc
           npm install --legacy-peer-deps
 
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Generate Gradle Wrapper JAR
+        working-directory: ./frontend/android
+        run: |
+          gradle wrapper --gradle-version=$(grep distributionUrl gradle/wrapper/gradle-wrapper.properties | sed 's/.*gradle-\(.*\)-bin.zip/\1/')
+
       - name: Generate Android Keystore
         working-directory: ./frontend
         run: |
@@ -56,4 +67,13 @@ jobs:
 
       - name: Build Android dev client (APK)
         working-directory: ./frontend
+        env:
+          EXPO_NO_DOCTOR: "1"
         run: eas build --profile development --platform android --local --output ./build.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-build-apk
+          path: ./frontend/build.apk
+          if-no-files-found: error
