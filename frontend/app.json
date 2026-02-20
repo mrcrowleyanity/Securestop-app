@@ -12,10 +12,6 @@
       "resizeMode": "contain",
       "backgroundColor": "#0f0f1a"
     },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.securestop.app"
-    },
     "android": {
       "package": "com.securestop.app",
       "versionCode": 1,
