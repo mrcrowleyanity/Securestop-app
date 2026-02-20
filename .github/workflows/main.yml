@@ -1,4 +1,4 @@
-name: EAS Init
+name: EAS Development Build
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  eas-init:
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
@@ -27,6 +27,6 @@ jobs:
         working-directory: ./frontend
         run: npm install --legacy-peer-deps
 
-      - name: Run eas init
+      - name: Build Android dev client (APK)
         working-directory: ./frontend
-        run: eas init --non-interactive --force
+        run: eas build --profile development --platform android --non-interactive
