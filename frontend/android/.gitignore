@@ -6,11 +6,14 @@
 #
 build/
 .idea
-.gradle
+.gradle/
 local.properties
 *.iml
 *.hprof
 .cxx/
+
+# Gradle wrapper - keep jar file tracked
+!gradle/wrapper/gradle-wrapper.jar
 
 # Bundle artifacts
 *.jsbundle
