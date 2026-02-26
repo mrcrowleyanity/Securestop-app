@@ -8,6 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "withoutCredentials": true,
+      "prebuildCommand": "npx expo prebuild --clean --platform android",
       "android": {
         "buildType": "apk"
       }
