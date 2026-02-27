@@ -9,6 +9,9 @@
       "distribution": "internal",
       "withoutCredentials": true,
       "prebuildCommand": "npx expo prebuild --clean --platform android",
+      "env": {
+        "EXPO_NO_DOCTOR": "1"
+      },
       "android": {
         "buildType": "apk",
         "gradleCommand": ":app:assembleDebug"
@@ -16,6 +19,9 @@
     },
     "preview": {
       "distribution": "internal",
+      "env": {
+        "EXPO_NO_DOCTOR": "1"
+      },
       "android": {
         "buildType": "apk"
       }
