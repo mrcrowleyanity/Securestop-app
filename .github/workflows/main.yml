@@ -37,6 +37,14 @@ jobs:
           distribution: temurin
           java-version: 17
 
+      - name: Run Expo Prebuild
+        working-directory: ./frontend
+        env:
+          EXPO_NO_DOCTOR: "1"
+        run: |
+          npx expo prebuild --clean --platform android
+          chmod +x android/gradlew
+
       - name: Download Gradle Wrapper JAR
         run: |
           GRADLE_VERSION=$(grep distributionUrl frontend/android/gradle/wrapper/gradle-wrapper.properties | sed 's/.*gradle-\(.*\)-bin.zip/\1/')
