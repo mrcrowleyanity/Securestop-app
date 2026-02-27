@@ -8,26 +8,27 @@
     "scheme": "securestop",
     "userInterfaceStyle": "dark",
     "splash": {
-      "image": "./assets/images/splash-image.png",
+      "image": "./assets/images/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0f0f1a"
+      "backgroundColor": "#000000"
     },
     "android": {
-      "package": "com.securestop.app",
-      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#0f0f1a"
-      }
+        "backgroundColor": "#000000"
+      },
+      "package": "com.securestop.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
-      "expo-dev-client"
+      "expo-router"
     ],
-    "extra": {
-      "eas": {
-        "projectId": "0bc0515f-6297-49e4-96ed-352038fbaeb0"
-      }
+    "experiments": {
+      "typedRoutes": true
     }
   }
 }
