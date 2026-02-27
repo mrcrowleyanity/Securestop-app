@@ -29,6 +29,12 @@
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0bc0515f-6297-49e4-96ed-352038fbaeb0"
+      }
+    },
+    "owner": "mrcrowleyanity"
   }
 }
