@@ -8,7 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "withoutCredentials": true,
-      "prebuildCommand": "expo prebuild --clean --platform android",
+      "prebuildCommand": "rm -rf android && expo prebuild --clean --platform android && chmod +x android/gradlew",
       "env": {
         "EXPO_NO_DOCTOR": "1"
       },
