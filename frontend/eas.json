@@ -8,9 +8,9 @@
       "developmentClient": true,
       "distribution": "internal",
       "withoutCredentials": true,
-      "prebuildCommand": "rm -rf android && expo prebuild --clean --platform android && chmod +x android/gradlew",
+      "prebuildCommand": "prebuild --clean --platform android",
       "env": {
-        "EXPO_NO_DOCTOR": "1"
+        "NODE_ENV": "development"
       },
       "android": {
         "buildType": "apk"
@@ -18,18 +18,15 @@
     },
     "preview": {
       "distribution": "internal",
-      "env": {
-        "EXPO_NO_DOCTOR": "1"
-      },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
-      "distribution": "store",
-      "android": {
-        "buildType": "app-bundle"
-      }
+      "autoIncrement": true
     }
+  },
+  "submit": {
+    "production": {}
   }
 }
