@@ -229,11 +229,10 @@ async def create_user(user: UserCreate):
         created_at=user_dict["created_at"],
         is_premium=user_dict["is_premium"]
     )
-
-@api_router.get("/users/{user_id}", response_model=UserResponse)
-async def get_user(user_id: str):
-    """Get user by ID"""
-    user = await db.users.find_one({"id": user_id})
+    @api_router.get("/users/by-email/{email}", response_model=UserResponse)
+async def get_user_by_email(email: str):
+    """Get user by email"""
+    user = await db.users.find_one({"email": email.lower()})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
@@ -244,10 +243,12 @@ async def get_user(user_id: str):
         is_premium=user.get("is_premium", False)
     )
 
-@api_router.get("/users/by-email/{email}", response_model=UserResponse)
-async def get_user_by_email(email: str):
-    """Get user by email"""
-    user = await db.users.find_one({"email": email.lower()})
+
+
+@api_router.get("/users/{user_id}", response_model=UserResponse)
+async def get_user(user_id: str):
+    """Get user by ID"""
+    user = await db.users.find_one({"id": user_id})
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
