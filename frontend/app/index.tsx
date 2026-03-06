@@ -28,10 +28,15 @@ export default function Index() {
       
       // Check if user is authenticated
       const userId = await AsyncStorage.getItem('user_id');
+      const userEmail = await AsyncStorage.getItem('user_email');
+      const userPin = await AsyncStorage.getItem('user_pin');
       
-      if (userId) {
+      // If we have some data but not all, we might be in a broken state
+      // (e.g. user_id from old Expo Go but no pin saved locally)
+      if (userId && (userEmail || userPin)) {
         router.replace('/home');
       } else {
+        // No valid session or missing local credentials - go to setup/login
         router.replace('/setup');
       }
     } catch (error) {
@@ -46,14 +51,14 @@ export default function Index() {
     <View style={styles.container}>
       <View style={styles.logoContainer}>
         <View style={styles.iconCircle}>
-          <Ionicons name="shield-checkmark" size={80} color="#007AFF" />
+          <Ionicons name=\"shield-checkmark\" size={80} color=\"#007AFF\" />
         </View>
         <Text style={styles.title}>Secure Stop</Text>
         <Text style={styles.subtitle}>Your documents, protected</Text>
       </View>
       
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size=\"large\" color=\"#007AFF\" />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     </View>
