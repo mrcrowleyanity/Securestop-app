@@ -26,22 +26,20 @@ export default function Index() {
         return;
       }
       
-      // Check if user is authenticated
+      // Check if user is authenticated locally
       const userId = await AsyncStorage.getItem('user_id');
-      const userEmail = await AsyncStorage.getItem('user_email');
       const userPin = await AsyncStorage.getItem('user_pin');
       
-      // If we have some data but not all, we might be in a broken state
-      // (e.g. user_id from old Expo Go but no pin saved locally)
-      if (userId && (userEmail || userPin)) {
+      if (userId && userPin) {
+        // We have local credentials, go home
         router.replace('/home');
       } else {
-        // No valid session or missing local credentials - go to setup/login
+        // No valid local session - go to setup/login
         router.replace('/setup');
       }
     } catch (error) {
       console.error('Auth check error:', error);
-      router.replace('/permissions');
+      router.replace('/setup');
     } finally {
       setIsLoading(false);
     }
@@ -51,14 +49,14 @@ export default function Index() {
     <View style={styles.container}>
       <View style={styles.logoContainer}>
         <View style={styles.iconCircle}>
-          <Ionicons name=\"shield-checkmark\" size={80} color=\"#007AFF\" />
+          <Ionicons name="shield-checkmark" size={80} color="#007AFF" />
         </View>
         <Text style={styles.title}>Secure Stop</Text>
         <Text style={styles.subtitle}>Your documents, protected</Text>
       </View>
       
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size=\"large\" color=\"#007AFF\" />
+        <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Loading...</Text>
       </View>
     </View>
