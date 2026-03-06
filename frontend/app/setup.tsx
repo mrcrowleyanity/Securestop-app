@@ -17,7 +17,6 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-
 console.log('API_URL configured as:', API_URL);
 
 export default function Setup() {
@@ -69,27 +68,36 @@ export default function Setup() {
       console.log('Creating user with email:', email.trim().toLowerCase());
       console.log('API URL:', API_URL);
       
-      const response = await axios.post(`${API_URL}/api/users`, {
-        email: email.trim().toLowerCase(),
-        pin: pin,
-      });
-
-      console.log('User created:', response.data);
+      let userId;
+      try {
+        const response = await axios.post(`${API_URL}/api/users`, {
+          email: email.trim().toLowerCase(),
+          pin: pin,
+        });
+        console.log('User created on server:', response.data);
+        userId = response.data.id;
+      } catch (apiError: any) {
+        console.warn('API account creation failed, using local-only mode:', apiError.message);
+        // Fallback to local ID if API is down
+        userId = `local_${Date.now()}`;
+        Alert.alert(
+          'Offline Mode',
+          'Could not connect to server. Your account will be saved locally on this device only.',
+          [{ text: 'OK' }]
+        );
+      }
       
-      const userId = response.data.id;
       await AsyncStorage.setItem('user_id', userId);
       await AsyncStorage.setItem('user_email', email.trim().toLowerCase());
+      // Save PIN locally for offline verification
+      await AsyncStorage.setItem('user_pin', pin);
       
       console.log('AsyncStorage set, navigating to home...');
-
-      // Navigate directly to home - use setTimeout to ensure state is saved
       setTimeout(() => {
         router.replace('/home');
       }, 100);
     } catch (error: any) {
       console.error('Setup error:', error);
-      console.error('Error response:', error.response?.data);
-      
       if (error.response?.data?.detail === 'User already exists') {
         Alert.alert(
           'Account Exists',
@@ -132,31 +140,44 @@ export default function Setup() {
 
     setIsLoading(true);
     try {
-      // First get user by email
-      const usersResponse = await axios.get(`${API_URL}/api/users/by-email/${encodeURIComponent(email.trim().toLowerCase())}`);
-      const userId = usersResponse.data.id;
+      // 1. Try server login first
+      try {
+        const usersResponse = await axios.get(`${API_URL}/api/users/by-email/${encodeURIComponent(email.trim().toLowerCase())}`);
+        const userId = usersResponse.data.id;
+        
+        const verifyResponse = await axios.post(`${API_URL}/api/users/verify-pin`, {
+          user_id: userId,
+          pin: pin,
+        });
 
-      // Verify PIN
-      const verifyResponse = await axios.post(`${API_URL}/api/users/verify-pin`, {
-        user_id: userId,
-        pin: pin,
-      });
+        if (verifyResponse.data.success) {
+          await AsyncStorage.setItem('user_id', userId);
+          await AsyncStorage.setItem('user_email', email.trim().toLowerCase());
+          await AsyncStorage.setItem('user_pin', pin); // Sync local PIN
+          router.replace('/home');
+          return;
+        }
+      } catch (apiError: any) {
+        console.warn('Server login failed or unavailable, checking local storage:', apiError.message);
+      }
 
-      if (verifyResponse.data.success) {
-        await AsyncStorage.setItem('user_id', userId);
-        await AsyncStorage.setItem('user_email', email.trim().toLowerCase());
+      // 2. Fallback to local verification
+      const localEmail = await AsyncStorage.getItem('user_email');
+      const localPin = await AsyncStorage.getItem('user_pin');
+      const localId = await AsyncStorage.getItem('user_id');
+
+      if (localEmail === email.trim().toLowerCase() && localPin === pin) {
+        console.log('Local login successful');
         router.replace('/home');
-      } else {
+      } else if (localEmail && localEmail === email.trim().toLowerCase()) {
         Alert.alert('Error', 'Invalid PIN. Please try again.');
         setPin('');
+      } else {
+        Alert.alert('Error', 'No account found with this email. Please check your connection or register.');
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      if (error.response?.status === 404) {
-        Alert.alert('Error', 'No account found with this email. Please register first.');
-      } else {
-        Alert.alert('Error', 'Failed to sign in. Please try again.');
-      }
+      Alert.alert('Error', 'Failed to sign in. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -166,26 +187,24 @@ export default function Setup() {
   const renderChoice = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
-        <Ionicons name="shield-checkmark" size={60} color="#007AFF" />
+        <Ionicons name=\"shield-checkmark\" size={60} color=\"#007AFF\" />
       </View>
       <Text style={styles.stepTitle}>Welcome</Text>
       <Text style={styles.stepDescription}>
         Secure your documents for police encounters
       </Text>
-
       <TouchableOpacity 
         style={styles.button} 
         onPress={() => setMode('register')}
       >
-        <Ionicons name="person-add" size={20} color="#fff" />
+        <Ionicons name=\"person-add\" size={20} color=\"#fff\" />
         <Text style={styles.buttonText}>Create New Account</Text>
       </TouchableOpacity>
-
       <TouchableOpacity 
         style={[styles.button, styles.secondaryButton]} 
         onPress={() => setMode('login')}
       >
-        <Ionicons name="log-in" size={20} color="#007AFF" />
+        <Ionicons name=\"log-in\" size={20} color=\"#007AFF\" />
         <Text style={[styles.buttonText, styles.secondaryButtonText]}>Sign In</Text>
       </TouchableOpacity>
     </View>
@@ -195,50 +214,46 @@ export default function Setup() {
   const renderLogin = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
-        <Ionicons name="lock-open" size={60} color="#007AFF" />
+        <Ionicons name=\"lock-open\" size={60} color=\"#007AFF\" />
       </View>
       <Text style={styles.stepTitle}>Sign In</Text>
       <Text style={styles.stepDescription}>
         Enter your email and PIN to access your secure folder
       </Text>
-
       <TextInput
         style={styles.input}
-        placeholder="your@email.com"
-        placeholderTextColor="#666"
+        placeholder=\"your@email.com\"
+        placeholderTextColor=\"#666\"
         value={email}
         onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
+        keyboardType=\"email-address\"
+        autoCapitalize=\"none\"
         autoCorrect={false}
       />
-
       <TextInput
         style={styles.input}
-        placeholder="Enter your PIN"
-        placeholderTextColor="#666"
+        placeholder=\"Enter your PIN\"
+        placeholderTextColor=\"#666\"
         value={pin}
         onChangeText={setPin}
-        keyboardType="number-pad"
+        keyboardType=\"number-pad\"
         secureTextEntry
         maxLength={8}
       />
-
       <TouchableOpacity
         style={[styles.button, isLoading && styles.buttonDisabled]}
         onPress={handleLogin}
         disabled={isLoading}
       >
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color=\"#fff\" />
         ) : (
           <>
-            <Ionicons name="log-in" size={20} color="#fff" />
+            <Ionicons name=\"log-in\" size={20} color=\"#fff\" />
             <Text style={styles.buttonText}>Sign In</Text>
           </>
         )}
       </TouchableOpacity>
-
       <TouchableOpacity 
         style={styles.backButton} 
         onPress={() => {
@@ -247,7 +262,7 @@ export default function Setup() {
           setPin('');
         }}
       >
-        <Ionicons name="arrow-back" size={20} color="#007AFF" />
+        <Ionicons name=\"arrow-back\" size={20} color=\"#007AFF\" />
         <Text style={styles.backButtonText}>Back</Text>
       </TouchableOpacity>
     </View>
@@ -257,7 +272,7 @@ export default function Setup() {
   const renderStep1 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
-        <Ionicons name="mail" size={60} color="#007AFF" />
+        <Ionicons name=\"mail\" size={60} color=\"#007AFF\" />
       </View>
       <Text style={styles.stepTitle}>Enter Your Email</Text>
       <Text style={styles.stepDescription}>
@@ -265,17 +280,17 @@ export default function Setup() {
       </Text>
       <TextInput
         style={styles.input}
-        placeholder="your@email.com"
-        placeholderTextColor="#666"
+        placeholder=\"your@email.com\"
+        placeholderTextColor=\"#666\"
         value={email}
         onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
+        keyboardType=\"email-address\"
+        autoCapitalize=\"none\"
         autoCorrect={false}
       />
       <TouchableOpacity style={styles.button} onPress={handleEmailSubmit}>
         <Text style={styles.buttonText}>Continue</Text>
-        <Ionicons name="arrow-forward" size={20} color="#fff" />
+        <Ionicons name=\"arrow-forward\" size={20} color=\"#fff\" />
       </TouchableOpacity>
       <TouchableOpacity 
         style={styles.backButton} 
@@ -284,7 +299,7 @@ export default function Setup() {
           setEmail('');
         }}
       >
-        <Ionicons name="arrow-back" size={20} color="#007AFF" />
+        <Ionicons name=\"arrow-back\" size={20} color=\"#007AFF\" />
         <Text style={styles.backButtonText}>Back</Text>
       </TouchableOpacity>
     </View>
@@ -293,7 +308,7 @@ export default function Setup() {
   const renderStep2 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
-        <Ionicons name="keypad" size={60} color="#007AFF" />
+        <Ionicons name=\"keypad\" size={60} color=\"#007AFF\" />
       </View>
       <Text style={styles.stepTitle}>Create Your PIN</Text>
       <Text style={styles.stepDescription}>
@@ -301,20 +316,20 @@ export default function Setup() {
       </Text>
       <TextInput
         style={styles.input}
-        placeholder="Enter 4+ digit PIN"
-        placeholderTextColor="#666"
+        placeholder=\"Enter 4+ digit PIN\"
+        placeholderTextColor=\"#666\"
         value={pin}
         onChangeText={setPin}
-        keyboardType="number-pad"
+        keyboardType=\"number-pad\"
         secureTextEntry
         maxLength={8}
       />
       <TouchableOpacity style={styles.button} onPress={handlePinSubmit}>
         <Text style={styles.buttonText}>Continue</Text>
-        <Ionicons name="arrow-forward" size={20} color="#fff" />
+        <Ionicons name=\"arrow-forward\" size={20} color=\"#fff\" />
       </TouchableOpacity>
       <TouchableOpacity style={styles.backButton} onPress={() => setStep(1)}>
-        <Ionicons name="arrow-back" size={20} color="#007AFF" />
+        <Ionicons name=\"arrow-back\" size={20} color=\"#007AFF\" />
         <Text style={styles.backButtonText}>Back</Text>
       </TouchableOpacity>
     </View>
@@ -323,7 +338,7 @@ export default function Setup() {
   const renderStep3 = () => (
     <View style={styles.stepContainer}>
       <View style={styles.iconContainer}>
-        <Ionicons name="checkmark-circle" size={60} color="#007AFF" />
+        <Ionicons name=\"checkmark-circle\" size={60} color=\"#007AFF\" />
       </View>
       <Text style={styles.stepTitle}>Confirm Your PIN</Text>
       <Text style={styles.stepDescription}>
@@ -331,11 +346,11 @@ export default function Setup() {
       </Text>
       <TextInput
         style={styles.input}
-        placeholder="Confirm PIN"
-        placeholderTextColor="#666"
+        placeholder=\"Confirm PIN\"
+        placeholderTextColor=\"#666\"
         value={confirmPin}
         onChangeText={setConfirmPin}
-        keyboardType="number-pad"
+        keyboardType=\"number-pad\"
         secureTextEntry
         maxLength={8}
       />
@@ -345,16 +360,16 @@ export default function Setup() {
         disabled={isLoading}
       >
         {isLoading ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color=\"#fff\" />
         ) : (
           <>
             <Text style={styles.buttonText}>Complete Setup</Text>
-            <Ionicons name="checkmark" size={20} color="#fff" />
+            <Ionicons name=\"checkmark\" size={20} color=\"#fff\" />
           </>
         )}
       </TouchableOpacity>
       <TouchableOpacity style={styles.backButton} onPress={() => setStep(2)}>
-        <Ionicons name="arrow-back" size={20} color="#007AFF" />
+        <Ionicons name=\"arrow-back\" size={20} color=\"#007AFF\" />
         <Text style={styles.backButtonText}>Back</Text>
       </TouchableOpacity>
     </View>
@@ -368,7 +383,7 @@ export default function Setup() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <View style={styles.logoCircle}>
-            <Ionicons name="shield-checkmark" size={40} color="#007AFF" />
+            <Ionicons name=\"shield-checkmark\" size={40} color=\"#007AFF\" />
           </View>
           <Text style={styles.headerTitle}>Secure Stop</Text>
         </View>
