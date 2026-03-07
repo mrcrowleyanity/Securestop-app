@@ -10,13 +10,9 @@ import {
   Platform,
 } from 'react-native';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
-import * as Location from 'expo-location';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 export default function Unlock() {
   const [pin, setPin] = useState('');
@@ -29,7 +25,6 @@ export default function Unlock() {
   const cameraRef = useRef<CameraView>(null);
 
   useEffect(() => {
-    // Request camera permission on mount
     if (!permission?.granted) {
       requestPermission();
     }
@@ -53,30 +48,19 @@ export default function Unlock() {
 
   const captureIntruderPhoto = async (): Promise<string | null> => {
     try {
-      if (!permission?.granted) {
-        console.log('Camera permission not granted');
-        return null;
-      }
-
-      // Show camera briefly to capture
+      if (!permission?.granted) return null;
       setShowCamera(true);
-      
-      // Wait for camera to initialize
       await new Promise(resolve => setTimeout(resolve, 500));
-
       if (cameraRef.current) {
         const photo = await cameraRef.current.takePictureAsync({
           quality: 0.5,
           base64: true,
         });
-        
         setShowCamera(false);
-        
         if (photo?.base64) {
           return `data:image/jpeg;base64,${photo.base64}`;
         }
       }
-      
       setShowCamera(false);
       return null;
     } catch (error) {
@@ -86,35 +70,24 @@ export default function Unlock() {
     }
   };
 
+  // Verify PIN locally using SecureStore - no server required
   const handlePinSubmit = async () => {
     if (isLocked) return;
     if (pin.length < 4) {
       Alert.alert('Error', 'Please enter your full PIN');
       return;
     }
-
     setIsLoading(true);
     try {
-      const userId = await AsyncStorage.getItem('user_id');
-      const userEmail = await AsyncStorage.getItem('user_email');
-
-      const response = await axios.post(`${API_URL}/api/users/verify-pin`, {
-        user_id: userId,
-        pin: pin,
-      });
-
-      if (response.data.success) {
-        // Log the officer access before exiting
-        await logOfficerAccess();
-        
-        // Clear secure mode data
-        await AsyncStorage.removeItem('current_officer_name');
-        await AsyncStorage.removeItem('current_officer_badge');
-        await AsyncStorage.removeItem('current_location');
-
+      const storedPin = await SecureStore.getItemAsync('user_pin');
+      if (storedPin && storedPin === pin) {
+        // PIN matches - clear secure mode data stored locally
+        await SecureStore.deleteItemAsync('current_officer_name').catch(() => {});
+        await SecureStore.deleteItemAsync('current_officer_badge').catch(() => {});
+        await SecureStore.deleteItemAsync('current_location').catch(() => {});
         router.replace('/home');
       } else {
-        await handleFailedAttempt(userId, userEmail);
+        await handleFailedAttempt();
       }
     } catch (error) {
       console.error('Unlock error:', error);
@@ -125,81 +98,26 @@ export default function Unlock() {
     }
   };
 
-  const handleFailedAttempt = async (userId: string | null, userEmail: string | null) => {
+  const handleFailedAttempt = async () => {
     Vibration.vibrate(500);
     const newAttempts = attempts + 1;
     setAttempts(newAttempts);
-
-    // Capture photo of intruder
-    let intruderPhoto: string | null = null;
+    // Optionally capture photo of intruder locally
     try {
-      intruderPhoto = await captureIntruderPhoto();
+      await captureIntruderPhoto();
     } catch (e) {
       console.log('Could not capture photo');
     }
-
-    // Send email alert with photo on every failed attempt
-    if (userId && userEmail) {
-      try {
-        let location = null;
-        try {
-          const { status } = await Location.requestForegroundPermissionsAsync();
-          if (status === 'granted') {
-            const loc = await Location.getCurrentPositionAsync({});
-            location = {
-              latitude: loc.coords.latitude,
-              longitude: loc.coords.longitude,
-            };
-          }
-        } catch (e) {
-          console.log('Location unavailable');
-        }
-
-        await axios.post(`${API_URL}/api/failed-attempt/alert`, {
-          user_id: userId,
-          email: userEmail,
-          latitude: location?.latitude,
-          longitude: location?.longitude,
-          intruder_photo: intruderPhoto,
-        });
-      } catch (e) {
-        console.error('Failed to send alert:', e);
-      }
-    }
-
     if (newAttempts >= 3) {
       setIsLocked(true);
-      setLockTimer(30); // 30 second lockout
+      setLockTimer(30);
       setAttempts(0);
       Alert.alert(
         'Too Many Attempts',
-        'You have been locked out for 30 seconds. A security alert with photo has been sent to the account owner.'
+        'You have been locked out for 30 seconds.'
       );
     } else {
-      Alert.alert('Incorrect PIN', `${3 - newAttempts} attempts remaining. Photo captured.`);
-    }
-  };
-
-  const logOfficerAccess = async () => {
-    try {
-      const userId = await AsyncStorage.getItem('user_id');
-      const officerName = await AsyncStorage.getItem('current_officer_name');
-      const badgeNumber = await AsyncStorage.getItem('current_officer_badge');
-      const locationStr = await AsyncStorage.getItem('current_location');
-      const location = locationStr ? JSON.parse(locationStr) : null;
-
-      if (userId && officerName && badgeNumber) {
-        await axios.post(`${API_URL}/api/access-log`, {
-          user_id: userId,
-          officer_name: officerName,
-          badge_number: badgeNumber,
-          latitude: location?.latitude,
-          longitude: location?.longitude,
-          documents_viewed: [],
-        });
-      }
-    } catch (error) {
-      console.error('Failed to log access:', error);
+      Alert.alert('Incorrect PIN', `${3 - newAttempts} attempts remaining.`);
     }
   };
 
@@ -222,7 +140,6 @@ export default function Unlock() {
       ['7', '8', '9'],
       ['', '0', 'back'],
     ];
-
     return (
       <View style={styles.keypad}>
         {rows.map((row, rowIndex) => (
@@ -239,7 +156,7 @@ export default function Unlock() {
                     onPress={handleBackspace}
                     disabled={isLocked}
                   >
-                    <Ionicons name="backspace" size={28} color={isLocked ? '#444' : '#fff'} />
+                    <Ionicons name="backspace" size={24} color={isLocked ? '#444' : '#fff'} />
                   </TouchableOpacity>
                 );
               }
@@ -250,9 +167,7 @@ export default function Unlock() {
                   onPress={() => handleNumberPress(key)}
                   disabled={isLocked}
                 >
-                  <Text style={[styles.keyText, isLocked && styles.keyTextDisabled]}>
-                    {key}
-                  </Text>
+                  <Text style={[styles.keyText, isLocked && styles.keyTextDisabled]}>{key}</Text>
                 </TouchableOpacity>
               );
             })}
@@ -264,28 +179,23 @@ export default function Unlock() {
 
   return (
     <View style={styles.container}>
-      {/* Hidden camera for capturing intruder photos */}
+      {/* Hidden camera for intruder capture */}
       {showCamera && (
         <View style={styles.hiddenCamera}>
-          <CameraView
-            ref={cameraRef}
-            style={styles.camera}
-            facing="front"
-          />
+          <CameraView ref={cameraRef} style={styles.camera} />
         </View>
       )}
 
       <View style={styles.header}>
         <View style={styles.iconContainer}>
-          <Ionicons name="lock-open" size={50} color="#007AFF" />
+          <Ionicons name="lock-closed" size={48} color="#007AFF" />
         </View>
         <Text style={styles.title}>Enter PIN to Exit</Text>
         <Text style={styles.subtitle}>Secure mode will be deactivated</Text>
       </View>
 
-      {/* Security indicator */}
       <View style={styles.securityBadge}>
-        <Ionicons name="camera" size={14} color="#FF9500" />
+        <Ionicons name="shield-checkmark" size={14} color="#FF9500" />
         <Text style={styles.securityText}>Security camera active</Text>
       </View>
 
@@ -312,12 +222,9 @@ export default function Unlock() {
       {renderKeypad()}
 
       <TouchableOpacity
-        style={[
-          styles.submitButton,
-          (isLoading || isLocked || pin.length < 4) && styles.submitButtonDisabled,
-        ]}
+        style={[styles.submitButton, (isLoading || isLocked) && styles.submitButtonDisabled]}
         onPress={handlePinSubmit}
-        disabled={isLoading || isLocked || pin.length < 4}
+        disabled={isLoading || isLocked}
       >
         {isLoading ? (
           <ActivityIndicator color="#fff" />
