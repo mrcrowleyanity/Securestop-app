@@ -1,11 +1,11 @@
 /**
  * Permissions Manager - Handles all app permissions
- * 
+ *
  * Standard Features:
  * - Location (for stop logging)
  * - Storage (for document storage)
  * - Screen Pinning (setup guide)
- * 
+ *
  * Premium Features:
  * - Camera (cop photos, document scanning)
  * - Microphone (audio recording)
@@ -20,7 +20,7 @@ import * as MediaLibrary from 'expo-media-library';
 import * as Contacts from 'expo-contacts';
 import { Audio } from 'expo-av';
 import * as IntentLauncher from 'expo-intent-launcher';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 // Camera permission functions from the Camera object
 const { getCameraPermissionsAsync, requestCameraPermissionsAsync } = Camera;
@@ -60,33 +60,27 @@ export async function checkAllPermissions(): Promise<PermissionStatus> {
   try {
     // Location
     const locationStatus = await Location.getForegroundPermissionsAsync();
-    status.location = locationStatus.granted ? 'granted' : 
-                      locationStatus.canAskAgain ? 'undetermined' : 'denied';
+    status.location = locationStatus.granted ? 'granted' : locationStatus.canAskAgain ? 'undetermined' : 'denied';
 
     // Camera
     const cameraStatus = await getCameraPermissionsAsync();
-    status.camera = cameraStatus.granted ? 'granted' : 
-                    cameraStatus.canAskAgain ? 'undetermined' : 'denied';
+    status.camera = cameraStatus.granted ? 'granted' : cameraStatus.canAskAgain ? 'undetermined' : 'denied';
 
     // Microphone
     const micStatus = await Audio.getPermissionsAsync();
-    status.microphone = micStatus.granted ? 'granted' : 
-                        micStatus.canAskAgain ? 'undetermined' : 'denied';
+    status.microphone = micStatus.granted ? 'granted' : micStatus.canAskAgain ? 'undetermined' : 'denied';
 
     // Storage/Media Library
     const storageStatus = await MediaLibrary.getPermissionsAsync();
-    status.storage = storageStatus.granted ? 'granted' : 
-                     storageStatus.canAskAgain ? 'undetermined' : 'denied';
+    status.storage = storageStatus.granted ? 'granted' : storageStatus.canAskAgain ? 'undetermined' : 'denied';
 
     // Contacts
     const contactsStatus = await Contacts.getPermissionsAsync();
-    status.contacts = contactsStatus.granted ? 'granted' : 
-                      contactsStatus.canAskAgain ? 'undetermined' : 'denied';
+    status.contacts = contactsStatus.granted ? 'granted' : contactsStatus.canAskAgain ? 'undetermined' : 'denied';
 
-    // Screen Pinning (check if user has confirmed setup)
-    const pinningConfirmed = await AsyncStorage.getItem(SCREEN_PINNING_CONFIRMED_KEY);
+    // Screen Pinning - use SecureStore for local storage
+    const pinningConfirmed = await SecureStore.getItemAsync(SCREEN_PINNING_CONFIRMED_KEY);
     status.screenPinning = pinningConfirmed === 'true' ? 'enabled' : 'disabled';
-
   } catch (error) {
     console.error('Error checking permissions:', error);
   }
@@ -183,14 +177,11 @@ export async function requestContactsPermission(): Promise<PermissionResult> {
  * Request all permissions in sequence
  */
 export async function requestAllPermissions(): Promise<PermissionStatus> {
-  // Request in order of importance
   await requestLocationPermission();
   await requestStoragePermission();
   await requestCameraPermission();
   await requestMicrophonePermission();
   await requestContactsPermission();
-  
-  // Return updated status
   return await checkAllPermissions();
 }
 
@@ -219,7 +210,6 @@ export async function openAppSettings(): Promise<void> {
 export async function openScreenPinningSettings(): Promise<void> {
   try {
     if (Platform.OS === 'android') {
-      // Try security settings first
       try {
         await IntentLauncher.startActivityAsync(
           IntentLauncher.ActivityAction.SECURITY_SETTINGS
@@ -237,24 +227,24 @@ export async function openScreenPinningSettings(): Promise<void> {
 }
 
 /**
- * Mark screen pinning as confirmed by user
+ * Mark screen pinning as confirmed by user - stored locally
  */
 export async function confirmScreenPinning(): Promise<void> {
-  await AsyncStorage.setItem(SCREEN_PINNING_CONFIRMED_KEY, 'true');
+  await SecureStore.setItemAsync(SCREEN_PINNING_CONFIRMED_KEY, 'true');
 }
 
 /**
- * Mark permissions as checked (for first-run flow)
+ * Mark permissions as checked (for first-run flow) - stored locally
  */
 export async function markPermissionsChecked(): Promise<void> {
-  await AsyncStorage.setItem(PERMISSIONS_CHECKED_KEY, 'true');
+  await SecureStore.setItemAsync(PERMISSIONS_CHECKED_KEY, 'true');
 }
 
 /**
  * Check if permissions have been checked before
  */
 export async function hasCheckedPermissions(): Promise<boolean> {
-  const checked = await AsyncStorage.getItem(PERMISSIONS_CHECKED_KEY);
+  const checked = await SecureStore.getItemAsync(PERMISSIONS_CHECKED_KEY);
   return checked === 'true';
 }
 
