@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function Setup() {
@@ -24,7 +24,7 @@ export default function Setup() {
   const [isLoading, setIsLoading] = useState(false);
 
   const validateEmail = (email: string) => {
-    return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   };
 
   // ============ REGISTER FLOW ============
@@ -45,7 +45,7 @@ export default function Setup() {
       Alert.alert('Error', 'PIN must be at least 4 digits');
       return;
     }
-    if (!/^\\d+$/.test(pin)) {
+    if (!/^\d+$/.test(pin)) {
       Alert.alert('Error', 'PIN must contain only numbers');
       return;
     }
@@ -58,16 +58,15 @@ export default function Setup() {
       setConfirmPin('');
       return;
     }
-
     setIsLoading(true);
     try {
       const userId = `local_${Date.now()}`;
-      
-      // Store all data locally
-      await AsyncStorage.setItem('user_id', userId);
-      await AsyncStorage.setItem('user_email', email.trim().toLowerCase());
-      await AsyncStorage.setItem('user_pin', pin);
-      
+
+      // Store all sensitive data in secure encrypted storage
+      await SecureStore.setItemAsync('user_id', userId);
+      await SecureStore.setItemAsync('user_email', email.trim().toLowerCase());
+      await SecureStore.setItemAsync('user_pin', pin);
+
       router.replace('/home');
     } catch (error) {
       console.error('Setup error:', error);
@@ -83,12 +82,12 @@ export default function Setup() {
       Alert.alert('Error', 'Please enter both email and PIN');
       return;
     }
-
     setIsLoading(true);
     try {
-      const localEmail = await AsyncStorage.getItem('user_email');
-      const localPin = await AsyncStorage.getItem('user_pin');
-      
+      // Read credentials from secure storage
+      const localEmail = await SecureStore.getItemAsync('user_email');
+      const localPin = await SecureStore.getItemAsync('user_pin');
+
       if (localEmail === email.trim().toLowerCase() && localPin === pin) {
         router.replace('/home');
       } else {
@@ -112,7 +111,7 @@ export default function Setup() {
       <Text style={styles.stepDescription}>
         Secure your documents for police encounters. All data is stored locally on this device.
       </Text>
-      
+
       <TouchableOpacity 
         style={styles.button} 
         onPress={() => setMode('register')}
@@ -120,7 +119,6 @@ export default function Setup() {
         <Ionicons name="person-add" size={20} color="#fff" />
         <Text style={styles.buttonText}>Create New Account</Text>
       </TouchableOpacity>
-
       <TouchableOpacity 
         style={[styles.button, styles.secondaryButton]} 
         onPress={() => setMode('login')}
@@ -160,7 +158,7 @@ export default function Setup() {
       >
         {isLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Sign In</Text>}
       </TouchableOpacity>
-      
+
       <TouchableOpacity onPress={() => setMode('choice')}>
         <Text style={styles.backButtonText}>Back</Text>
       </TouchableOpacity>
