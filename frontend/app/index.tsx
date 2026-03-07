@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import Permissions from '../utils/permissions';
 
@@ -16,22 +16,22 @@ export default function Index() {
     try {
       // Check if permissions have been set up
       const hasCheckedPermissions = await Permissions.hasCheckedPermissions();
-      
+
       // Small delay for splash effect
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       if (!hasCheckedPermissions) {
         // First launch - go to permissions setup
         router.replace('/permissions');
         return;
       }
-      
-      // Check if user is authenticated locally
-      const userId = await AsyncStorage.getItem('user_id');
-      const userPin = await AsyncStorage.getItem('user_pin');
-      
+
+      // Check if user is authenticated locally (using secure storage)
+      const userId = await SecureStore.getItemAsync('user_id');
+      const userPin = await SecureStore.getItemAsync('user_pin');
+
       if (userId && userPin) {
-        // We have local credentials, go home
+        // We have local credentials securely stored, go home
         router.replace('/home');
       } else {
         // No valid local session - go to setup/login
@@ -54,7 +54,7 @@ export default function Index() {
         <Text style={styles.title}>Secure Stop</Text>
         <Text style={styles.subtitle}>Your documents, protected</Text>
       </View>
-      
+
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
         <Text style={styles.loadingText}>Loading...</Text>
