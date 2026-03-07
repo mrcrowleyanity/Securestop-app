@@ -1,64 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { View, ActivityIndicator, StyleSheet, AppState, AppStateStatus } from 'react-native';
 
 export default function RootLayout() {
-  const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    checkAuth();
-    
-    // Listen for app state changes to handle background/foreground
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
-    
-    return () => {
-      subscription.remove();
-    };
-  }, []);
-
-  const handleAppStateChange = useCallback(async (nextAppState: AppStateStatus) => {
-    if (nextAppState === 'active') {
-      // App came to foreground - verify session is still valid
-      await verifySession();
-    }
-  }, []);
-
-  const checkAuth = async () => {
-    try {
-      const userId = await AsyncStorage.getItem('user_id');
-      console.log('Auth check - user_id:', userId ? 'exists' : 'not found');
-      setIsAuthenticated(!!userId);
-    } catch (error) {
-      console.error('Error checking auth:', error);
-      setIsAuthenticated(false);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const verifySession = async () => {
-    try {
-      const userId = await AsyncStorage.getItem('user_id');
-      if (userId !== null) {
-        setIsAuthenticated(true);
-      }
-    } catch (error) {
-      console.error('Session verification error:', error);
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <View style={styles.loading}>
-        <StatusBar style="light" />
-        <ActivityIndicator size="large" color="#007AFF" />
-      </View>
-    );
-  }
-
   return (
     <>
       <StatusBar style="light" />
@@ -97,7 +40,6 @@ export default function RootLayout() {
           options={{ 
             title: 'Secure Stop', 
             headerShown: false,
-            // Prevent going back to setup/login from home
             gestureEnabled: false,
           }} 
         />
@@ -106,7 +48,6 @@ export default function RootLayout() {
           options={{ 
             headerShown: false, 
             gestureEnabled: false,
-            // Prevent any navigation out except through the app
             animation: 'fade',
           }} 
         />
@@ -157,12 +98,3 @@ export default function RootLayout() {
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#0f0f1a',
-  },
-});
