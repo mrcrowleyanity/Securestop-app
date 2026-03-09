@@ -30,14 +30,17 @@ export default function Index() {
       const userId = await SecureStore.getItemAsync('user_id');
       const userPin = await SecureStore.getItemAsync('user_pin');
 
-      if (userId && userPin) {
-        // We have local credentials securely stored, go home
-        router.replace('/home');
-      } else {
-        // No valid local session - go to setup/login
-        router.replace('/setup');
-      }
-    } catch (error) {
+    // Check if user is authenticated and not in secure mode
+    if (userId && userPin) {
+      // We have local credentials securely stored, go home
+      router.replace('/home');
+    } else if (userId) {
+      // User has completed setup but secure mode is active - go to unlock
+      router.replace('/unlock');
+    } else {
+      // No valid local session - go to setup/login
+      router.replace('/setup');
+    }    } catch (error) {
       console.error('Auth check error:', error);
       router.replace('/setup');
     } finally {
