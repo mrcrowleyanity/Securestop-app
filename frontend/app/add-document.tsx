@@ -15,8 +15,9 @@ import {
   Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
-import * as SecureStore from 'expo-secure-store'; import { saveDocument } from '../utils/secureDocumentStorage'; from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
+import * as SecureStore from 'expo-secure-store';
+import { saveDocument } from '../utils/secureDocumentStorage'
+  ;import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
