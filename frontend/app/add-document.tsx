@@ -15,7 +15,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store'; import { saveDocument } from '../utils/secureDocumentStorage'; from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
@@ -149,15 +149,17 @@ export default function AddDocument() {
     }
   };
 
-  const handleSave = async () => {
+const handleSave = async () => {
     if (!selectedType) {
       Alert.alert('Required', 'Please select a document type');
       return;
     }
+
     if (!documentName.trim()) {
       Alert.alert('Required', 'Please enter a document name');
       return;
     }
+
     if (!imageUri) {
       Alert.alert('Required', 'Please add an image of your document');
       return;
@@ -165,16 +167,16 @@ export default function AddDocument() {
 
     setIsLoading(true);
     try {
-      const userId = await AsyncStorage.getItem('user_id');
-
-      await axios.post(`${API_URL}/api/documents`, {
-        user_id: userId,
-        doc_type: selectedType,
+      // Save document locally using secure encrypted storage
+      await saveDocument({
+        id: `doc_${Date.now()}`,
+        type: selectedType,
         name: documentName.trim(),
-        image_base64: imageUri,
+        imageUri: imageUri,
+        createdAt: new Date().toISOString(),
       });
 
-      Alert.alert('Success', 'Document saved successfully', [
+      Alert.alert('Success', 'Document saved successfully to secure local storage', [
         { text: 'OK', onPress: () => router.back() },
       ]);
     } catch (error) {
@@ -184,7 +186,6 @@ export default function AddDocument() {
       setIsLoading(false);
     }
   };
-
   // Camera Scanner Modal
   const renderCameraModal = () => (
     <Modal
