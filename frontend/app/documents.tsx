@@ -12,12 +12,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
+import { getDocuments, deleteDocument } from '../utils/secureDocumentStorage';import { Ionicons } from '@expo/vector-icons';
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-const { width } = Dimensions.get('window');
 
 interface Document {
   id: string;
@@ -53,13 +49,11 @@ export default function Documents() {
     loadDocuments();
   }, []);
 
-  const loadDocuments = async () => {
+const loadDocuments = async () => {
     try {
-      const userId = await AsyncStorage.getItem('user_id');
-      if (userId) {
-        const response = await axios.get(`${API_URL}/api/documents/${userId}`);
-        setDocuments(response.data);
-      }
+      setIsLoading(true);
+      const docs = await getDocuments();
+      setDocuments(docs);
     } catch (error) {
       console.error('Error loading documents:', error);
     } finally {
@@ -67,13 +61,12 @@ export default function Documents() {
       setRefreshing(false);
     }
   };
-
   const confirmDelete = async () => {
     if (!deleteDoc) return;
     
     setIsDeleting(true);
     try {
-      await axios.delete(`${API_URL}/api/documents/${deleteDoc.id}`);
+      await deleteDocument(deleteDoc.id);      
       setDocuments(prev => prev.filter((d) => d.id !== deleteDoc.id));
       
       if (selectedDoc?.id === deleteDoc.id) {
