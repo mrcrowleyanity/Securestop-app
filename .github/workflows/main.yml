@@ -48,12 +48,10 @@ jobs:
       - name: Patch Kotlin and AGP versions
         working-directory: ./frontend/android
         run: |
-          # Pin Kotlin to 1.9.25 to avoid kotlin-compiler-runner:2.1.20 resolution failures
           sed -i "s/kotlinVersion = findProperty('android.kotlinVersion') ?: '[^']*'/kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'/g" build.gradle
-          sed -i "s/kotlinVersion = '[0-9.]\+'/kotlinVersion = '1.9.25'/g" build.gradle
-          # Pin AGP to 8.3.2 (stable, compatible with Kotlin 1.9.25)
-          sed -i "s/com.android.tools.build:gradle:[0-9.]\+/com.android.tools.build:gradle:8.3.2/g" build.gradle
-          echo "--- Patched android/build.gradle ---"
+          sed -i "s/kotlinVersion = '[0-9][0-9.]*'/kotlinVersion = '1.9.25'/g" build.gradle
+          sed -i 's/com\.android\.tools\.build:gradle:[0-9][0-9.]*/com.android.tools.build:gradle:8.3.2/g' build.gradle
+          echo "Patched build.gradle:"
           cat build.gradle
 
       - name: Download Gradle Wrapper JAR
@@ -74,16 +72,7 @@ jobs:
             -storepass android \
             -keypass android \
             -dname "CN=Securestop, OU=Dev, O=Securestop, L=NJ, S=NJ, C=US"
-          echo '{
-  "android": {
-    "keystore": {
-      "keystorePath": "android.keystore",
-      "keystorePassword": "android",
-      "keyAlias": "my-key-alias",
-      "keyPassword": "android"
-    }
-  }
-}' > credentials.json
+          node -e "const fs=require('fs');fs.writeFileSync('credentials.json',JSON.stringify({android:{keystore:{keystorePath:'android.keystore',keystorePassword:'android',keyAlias:'my-key-alias',keyPassword:'android'}}},null,2))"
 
       - name: Build Android dev client (APK)
         working-directory: ./frontend
