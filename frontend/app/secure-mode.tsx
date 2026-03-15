@@ -68,9 +68,23 @@ export default function SecureMode() {
   }, []);
 
 
-  const initSecureMode = async () => {
+  60
+    = async () => {
     try {
       // Check if user has confirmed pinning setup
+          // First, check if officer has logged in
+    const officerName = await AsyncStorage.getItem('current_officer_name');
+    const officerBadge = await AsyncStorage.getItem('current_officer_badge');
+    
+    if (!officerName || !officerBadge) {
+      // No officer credentials - redirect to officer login
+      console.log('No officer credentials found - redirecting to officer-login');
+      router.replace('/officer-login');
+      return;
+    }
+    
+    console.log('Officer credentials verified:', officerName, officerBadge);
+    
       const hasConfirmedPinning = await AsyncStorage.getItem('pinning_confirmed');
       
       if (Platform.OS === 'android') {
