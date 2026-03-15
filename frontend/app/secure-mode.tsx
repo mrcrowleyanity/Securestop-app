@@ -237,6 +237,7 @@ export default function SecureMode() {
 console.error('Error during PIN verification:', error);
         setExitPin('');
       }
+  };
 
   const logOfficerAccess = async () => {
     try {
