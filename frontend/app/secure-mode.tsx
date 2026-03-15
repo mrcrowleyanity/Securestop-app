@@ -229,8 +229,8 @@ export default function SecureMode() {
         // Navigate to home
         setShowExitModal(false);
         router.replace('/home');
-} else {
-        setPinError('Incorrect PIN. Try again.');
+} catch (error) {
+console.error('Error during PIN verification:', error);
         setExitPin('');
       }
 
