@@ -169,12 +169,20 @@ const handleSave = async () => {
     setIsLoading(true);
     try {
       // Save document locally using secure encrypted storage
-      await saveDocument({
-        id: `doc_${Date.now()}`,
-        type: selectedType,
+      // Get userId from SecureStore
+      const userId = await SecureStore.getItemAsync('user_id');
+      if (!userId) {
+        Alert.alert('Error', 'User ID not found. Please log in again.');
+        setIsLoading(false);
+        return;
+      }
+
+      // Save document with correct signature
+      await saveDocument(userId, {
+        user_id: userId,
+        doc_type: selectedType,
         name: documentName.trim(),
-        imageUri: imageUri,
-        createdAt: new Date().toISOString(),
+        image_base64: imageUri,
       });
 
       Alert.alert('Success', 'Document saved successfully to secure local storage', [
