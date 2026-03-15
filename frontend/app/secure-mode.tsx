@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import ScreenPinning from '../modules/screen-pinning';
@@ -134,7 +135,7 @@ export default function SecureMode() {
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const userId = await AsyncStorage.getItem('user_id');
+      const userId = await SecureStore.getItemAsync('user_id');
       const name = await AsyncStorage.getItem('current_officer_name');
       const badge = await AsyncStorage.getItem('current_officer_badge');
 
@@ -194,7 +195,7 @@ export default function SecureMode() {
     setPinError('');
 
     try {
-      const userId = await AsyncStorage.getItem('user_id');
+      const userId = await SecureStore.getItemAsync('user_id');
       
       if (!userId) {
         setPinError('Session expired. Please restart the app.');
@@ -202,12 +203,10 @@ export default function SecureMode() {
         return;
       }
 
-      const response = await axios.post(`${API_URL}/api/users/verify-pin`, {
-        user_id: userId,
-        pin: exitPin,
-      });
-
-      if (response.data.success) {
+// Verify PIN locally using SecureStore
+      const storedPin = await SecureStore.getItemAsync('user_pin');
+      
+      if (storedPin && storedPin === exitPin) {
         // Log the access before exiting
         await logOfficerAccess();
         
@@ -230,26 +229,14 @@ export default function SecureMode() {
         // Navigate to home
         setShowExitModal(false);
         router.replace('/home');
-      } else {
+} else {
         setPinError('Incorrect PIN. Try again.');
         setExitPin('');
       }
-    } catch (error: any) {
-      console.error('PIN verification error:', error);
-      if (error.response?.status === 401) {
-        setPinError('Incorrect PIN. Try again.');
-      } else {
-        setPinError('Failed to verify PIN. Please try again.');
-      }
-      setExitPin('');
-    } finally {
-      setIsVerifying(false);
-    }
-  };
 
   const logOfficerAccess = async () => {
     try {
-      const userId = await AsyncStorage.getItem('user_id');
+      const userId = await SecureStore.getItemAsync('user_id');
       const locationStr = await AsyncStorage.getItem('current_location');
       const location = locationStr ? JSON.parse(locationStr) : null;
 
