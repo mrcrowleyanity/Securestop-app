@@ -68,8 +68,7 @@ export default function SecureMode() {
   }, []);
 
 
-  60
-    = async () => {
+const initSecureMode    = async () => {
     try {
       // Check if user has confirmed pinning setup
           // First, check if officer has logged in
