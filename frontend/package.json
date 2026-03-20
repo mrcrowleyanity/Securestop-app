@@ -17,6 +17,7 @@
     "@react-navigation/bottom-tabs": "^7.3.10",
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
+    "aes-js": "^3.1.2",
     "axios": "^1.13.2",
     "expo": "^54.0.33",
     "expo-av": "^16.0.8",
@@ -24,6 +25,7 @@
     "expo-camera": "^17.0.10",
     "expo-constants": "~18.0.13",
     "expo-contacts": "^15.0.11",
+    "expo-crypto": "~14.0.2",
     "expo-dev-client": "~6.0.20",
     "expo-document-picker": "^14.0.8",
     "expo-file-system": "^19.0.21",
@@ -61,6 +63,7 @@
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
+    "@types/aes-js": "^3.1.4",
     "@types/react": "~19.1.10",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
