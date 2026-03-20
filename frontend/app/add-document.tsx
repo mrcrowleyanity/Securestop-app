@@ -17,7 +17,7 @@ import {
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { saveDocument } from '../utils/secureDocumentStorage'
-  ;import { Ionicons } from '@expo/vector-icons';
+ ;import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
