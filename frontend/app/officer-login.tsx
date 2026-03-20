@@ -20,6 +20,7 @@ import * as Location from 'expo-location';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 
+import * as SecureStore from 'expo-secure-store';
 export default function OfficerLogin() {
   const [officerName, setOfficerName] = useState('');
   const [badgeNumber, setBadgeNumber] = useState('');
@@ -35,7 +36,7 @@ export default function OfficerLogin() {
   const initializeScreen = async () => {
     try {
       // Check if user is authenticated
-      const userId = await AsyncStorage.getItem('user_id');
+      const userId = await SecureStore.getItemAsync;
       if (!userId) {
         console.error('No user_id found - redirecting to setup');
         router.replace('/setup');
@@ -117,7 +118,7 @@ export default function OfficerLogin() {
 
     try {
       // Verify user is still authenticated
-      const userId = await AsyncStorage.getItem('user_id');
+      const userId = await SecureStore.getItemAsync;
       if (!userId) {
         setError('Session expired. Please restart the app.');
         setIsLoading(false);
