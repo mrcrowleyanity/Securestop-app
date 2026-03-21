@@ -305,6 +305,84 @@ export async function sendSMS(phoneNumber: string, message: string): Promise<boo
   }
 }
 
+
+/**
+ * Check if user has required permissions for Secure Mode
+ * Required: Screen Pinning, Storage
+ * Returns object with missing permissions
+ */
+export interface SecureModePermissionCheck {
+  hasRequiredPermissions: boolean;
+  missingRequired: string[];
+  optionalPermissions: {
+    camera: boolean;
+    location: boolean;
+    microphone: boolean;
+    contacts: boolean;
+  };
+  proFeatures: {
+    cameraForCopPhotos: boolean;
+    phoneAccess: boolean;
+    microphoneRecording: boolean;
+  };
+}
+
+export async function checkSecureModePermissions(): Promise<SecureModePermissionCheck> {
+  const status = await checkAllPermissions();
+  
+  // Required permissions
+  const requiredChecks = {
+    screenPinning: status.screenPinning === 'enabled',
+    storage: status.storage === 'granted',
+  };
+  
+  const missingRequired: string[] = [];
+  if (!requiredChecks.screenPinning) missingRequired.push('Screen Pinning');
+  if (!requiredChecks.storage) missingRequired.push('Storage');
+  
+  // Optional permissions for basic features
+  const optionalPermissions = {
+    camera: status.camera === 'granted', // For document scanning
+    location: status.location === 'granted', // For police interaction tracking
+    microphone: status.microphone === 'granted', // For audio recording
+    contacts: status.contacts === 'granted', // For emergency contacts
+  };
+  
+  // Pro feature permissions (subset of optional)
+  const proFeatures = {
+    cameraForCopPhotos: status.camera === 'granted', // Pro: Cop photo capture
+    phoneAccess: true, // Pro: Emergency calls (using Linking, no permission needed)
+    microphoneRecording: status.microphone === 'granted', // Pro: Audio recording during stop
+  };
+  
+  return {
+    hasRequiredPermissions: missingRequired.length === 0,
+    missingRequired,
+    optionalPermissions,
+    proFeatures,
+  };
+}
+
+/**
+ * Request required permissions for Secure Mode
+ * Returns true if all required permissions granted
+ */
+export async function requestSecureModePermissions(): Promise<boolean> {
+  // Request storage first
+  const storageResult = await requestStoragePermission();
+  
+  // Check screen pinning status
+  const pinningConfirmed = await SecureStore.getItemAsync(SCREEN_PINNING_CONFIRMED_KEY);
+  
+  // If screen pinning not confirmed, guide user to enable it
+  if (pinningConfirmed !== 'true') {
+    await openScreenPinningSettings();
+    return false;
+  }
+  
+  return storageResult.granted && pinningConfirmed === 'true';
+}
+
 export default {
   checkAllPermissions,
   requestAllPermissions,
@@ -322,4 +400,6 @@ export default {
   hasCriticalPermissions,
   makePhoneCall,
   sendSMS,
+  checkSecureModePermissions,
+  requestSecureModePermissions,
 };
