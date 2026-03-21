@@ -22,6 +22,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import ScreenPinning from '../modules/screen-pinning';
+import { checkSecureModePermissions } from '../utils/permissions';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width, height } = Dimensions.get('window');
