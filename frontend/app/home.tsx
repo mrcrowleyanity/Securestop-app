@@ -8,16 +8,19 @@ import {
   Platform,
   Modal,
   Linking,
+  Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
+import { enterScreenPinning } from '../utils/screenPinning';
 
 export default function Home() {
   const [userEmail, setUserEmail] = useState('');
   const [hasLocation, setHasLocation] = useState(false);
   const [showPinningModal, setShowPinningModal] = useState(false);
+  const [showInstructionsModal, setShowInstructionsModal] = useState(false);
 
   useEffect(() => {
     loadUserData();
@@ -39,14 +42,27 @@ export default function Home() {
   };
 
   const handleActivateSecureMode = () => {
-    // Go directly to officer login - no PIN required to activate
-    router.push('/officer-login');
+    setShowInstructionsModal(true);
+  };
+
+  const confirmSecureMode = async () => {
+    setShowInstructionsModal(false);
+    
+    if (Platform.OS === 'android') {
+      const result = await enterScreenPinning();
+      if (result.success) {
+        router.push('/officer-login');
+      } else {
+        Alert.alert('Screen Pinning Required', result.message || 'Please enable screen pinning to continue.');
+      }
+    } else {
+      router.push('/officer-login');
+    }
   };
 
   const openScreenPinningSettings = async () => {
     if (Platform.OS === 'android') {
       try {
-        // Try to open security settings directly
         await Linking.openSettings();
       } catch (error) {
         console.error('Failed to open settings:', error);
@@ -54,6 +70,48 @@ export default function Home() {
     }
     setShowPinningModal(false);
   };
+
+  const renderInstructionsModal = () => (
+    <Modal
+      visible={showInstructionsModal}
+      transparent
+      animationType="slide"
+      onRequestClose={() => setShowInstructionsModal(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={[styles.modalIconContainer, { backgroundColor: 'rgba(255, 59, 48, 0.1)' }]}>
+            <Ionicons name="shield-half" size={48} color="#FF3B30" />
+          </View>
+          <Text style={styles.modalTitle}>Entering Secure Mode</Text>
+          <Text style={styles.modalSubtitle}>
+            This will lock your device to the Secure Stop app.
+          </Text>
+          
+          <View style={styles.stepsContainer}>
+            <Text style={styles.stepText}>• Hand your device to the officer</Text>
+            <Text style={styles.stepText}>• The officer will enter their credentials</Text>
+            <Text style={styles.stepText}>• Your private data remains encrypted</Text>
+            <Text style={styles.stepText}>• You can exit secure mode anytime after unpinning</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.openSettingsBtn, { backgroundColor: '#FF3B30' }]}
+            onPress={confirmSecureMode}
+          >
+            <Text style={styles.openSettingsBtnText}>Confirm & Start</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.dismissBtn}
+            onPress={() => setShowInstructionsModal(false)}
+          >
+            <Text style={styles.dismissBtnText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
 
   const renderPinningModal = () => (
     <Modal
@@ -64,9 +122,9 @@ export default function Home() {
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <View style={styles.modalIconContainer}>
+          <div style={styles.modalIconContainer}>
             <Ionicons name="phone-portrait" size={48} color="#007AFF" />
-          </View>
+          </div>
           <Text style={styles.modalTitle}>Setup Screen Pinning</Text>
           <Text style={styles.modalSubtitle}>
             Screen pinning locks your phone to the Secure Stop app during police encounters.
@@ -98,14 +156,12 @@ export default function Home() {
               <Text style={styles.stepText}>In Secure Mode, use Recent Apps → Pin icon</Text>
             </View>
           </View>
-
           <View style={styles.tipBox}>
             <Ionicons name="bulb" size={18} color="#FF9500" />
             <Text style={styles.tipText}>
               Once pinned, hold Back + Recent to unpin (requires your PIN)
             </Text>
           </View>
-
           <TouchableOpacity
             style={styles.openSettingsBtn}
             onPress={openScreenPinningSettings}
@@ -113,7 +169,6 @@ export default function Home() {
             <Ionicons name="settings" size={20} color="#fff" />
             <Text style={styles.openSettingsBtnText}>Open Settings</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.dismissBtn}
             onPress={() => setShowPinningModal(false)}
@@ -167,7 +222,6 @@ export default function Home() {
         </View>
         <Text style={styles.headerEmail}>{userEmail}</Text>
       </View>
-
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Secure Mode Button */}
         <TouchableOpacity
@@ -186,7 +240,6 @@ export default function Home() {
           </View>
           <Ionicons name="chevron-forward" size={24} color="#fff" />
         </TouchableOpacity>
-
         {/* Info Banner */}
         <View style={styles.infoBanner}>
           <Ionicons name="information-circle" size={20} color="#007AFF" />
@@ -194,7 +247,6 @@ export default function Home() {
             Secure mode locks your phone to this app. Officers must enter credentials to view documents.
           </Text>
         </View>
-
         {/* Screen Pinning Setup Button - Android Only */}
         {Platform.OS !== 'web' && (
           <TouchableOpacity
@@ -214,7 +266,6 @@ export default function Home() {
             <Ionicons name="chevron-forward" size={20} color="#FF9500" />
           </TouchableOpacity>
         )}
-
         {/* Menu Items */}
         <View style={styles.menuContainer}>
           {menuItems.map((item, index) => (
@@ -235,7 +286,6 @@ export default function Home() {
             </TouchableOpacity>
           ))}
         </View>
-
         {/* Location Status */}
         <View style={styles.statusContainer}>
           <View style={styles.statusItem}>
@@ -250,8 +300,8 @@ export default function Home() {
           </View>
         </View>
       </ScrollView>
-
-      {/* Screen Pinning Modal */}
+      {/* Modals */}
+      {renderInstructionsModal()}
       {renderPinningModal()}
     </View>
   );
@@ -386,7 +436,6 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: 12,
   },
-  // Screen Pinning Setup Button Styles
   pinningSetupButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -419,7 +468,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#CC7A00',
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
@@ -489,6 +537,7 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     lineHeight: 18,
+    marginBottom: 8,
   },
   tipBox: {
     flexDirection: 'row',
