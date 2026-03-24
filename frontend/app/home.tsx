@@ -122,9 +122,9 @@ export default function Home() {
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <div style={styles.modalIconContainer}>
+          <View style={styles.modalIconContainer}>
             <Ionicons name="phone-portrait" size={48} color="#007AFF" />
-          </div>
+          </View>
           <Text style={styles.modalTitle}>Setup Screen Pinning</Text>
           <Text style={styles.modalSubtitle}>
             Screen pinning locks your phone to the Secure Stop app during police encounters.
