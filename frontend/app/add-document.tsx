@@ -189,7 +189,7 @@ export default function AddDocument() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.header}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-            <Ionicons name=\"arrow-back\" size={24} color=\"#fff\" />
+                      <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.title}>Add Document</Text>
         </View>
