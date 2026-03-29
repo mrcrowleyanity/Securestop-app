@@ -250,10 +250,10 @@ export default function AddDocument() {
           disabled={isLoading}
         >
           {isLoading ? (
-            <ActivityIndicator color=\"#fff\" />
+            <ActivityIndicator color="#fff" />
           ) : (
             <>
-              <Ionicons name=\"shield-checkmark\" size={20} color=\"#fff\" style={{ marginRight: 8 }} />
+              <Ionicons name="shield-checkmark" size={20} color="#fff" style={{ marginRight: 8 }} />
               <Text style={styles.saveButtonText}>Save to Secure Vault</Text>
             </>
           )}
@@ -264,22 +264,22 @@ export default function AddDocument() {
       <Modal
         visible={showOptionsModal}
         transparent={true}
-        animationType=\"slide\"
+        animationType="slide"
         onRequestClose={() => setShowOptionsModal(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Add Document Photo</Text>
             <TouchableOpacity style={styles.modalOption} onPress={handleCameraCapture}>
-              <Ionicons name=\"camera\" size={24} color=\"#4dabf7\" />
+              <Ionicons name="camera" size={24} color="#4dabf7" />
               <Text style={styles.modalOptionText}>Take Photo</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalOption} onPress={pickFromGallery}>
-              <Ionicons name=\"images\" size={24} color=\"#4dabf7\" />
+              <Ionicons name="images" size={24} color="#4dabf7" />
               <Text style={styles.modalOptionText}>Choose from Gallery</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.modalOption} onPress={pickDocument}>
-              <Ionicons name=\"document-attach\" size={24} color=\"#4dabf7\" />
+              <Ionicons name="document-attach" size={24} color="#4dabf7" />
               <Text style={styles.modalOptionText}>Browse Documents</Text>
             </TouchableOpacity>
             <TouchableOpacity 
@@ -295,7 +295,7 @@ export default function AddDocument() {
       {/* Camera Modal */}
       <Modal
         visible={showCameraModal}
-        animationType=\"fade\"
+        animationType="fade"
         onRequestClose={() => setShowCameraModal(false)}
       >
         <View style={styles.cameraContainer}>
@@ -305,7 +305,7 @@ export default function AddDocument() {
                 style={styles.cameraClose} 
                 onPress={() => setShowCameraModal(false)}
               >
-                <Ionicons name=\"close\" size={30} color=\"#fff\" />
+                <Ionicons name="close" size={30} color="#fff" />
               </TouchableOpacity>
               <TouchableOpacity 
                 style={styles.captureBtn} 
