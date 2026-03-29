@@ -223,10 +223,11 @@ export default function AddDocument() {
         <Text style={styles.sectionLabel}>2. Document Name</Text>
         <TextInput
           style={styles.input}
-          placeholder=\"e.g. My Driver's License\"
-          placeholderTextColor="#888"          value={documentName}
+          placeholder="e.g. My Driver's License"
+          placeholderTextColor="#888"
+          value={documentName}
           onChangeText={setDocumentName}
-                  placeholder="e.g. My Driver's License"
+        />
 
         <Text style={styles.sectionLabel}>3. Capture or Upload Document</Text>
         <TouchableOpacity 
