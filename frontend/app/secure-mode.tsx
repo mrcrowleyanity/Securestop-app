@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
+import { loadDocuments } from '../utils/secureDocumentStorage';
 import ScreenPinning from '../modules/screen-pinning';
 import { checkSecureModePermissions } from '../utils/permissions';
 
@@ -159,21 +160,13 @@ const initSecureMode    = async () => {
       if (badge) setBadgeNumber(badge);
 
       if (userId) {
-        try {
-          const response = await axios.get(`${API_URL}/api/documents/${userId}`, {
-            timeout: 10000,
-          });
-          console.log('Documents loaded:', response.data?.length || 0);
-          setDocuments(response.data || []);
-        } catch (apiError) {
-          console.error('API Error:', apiError);
+        const docs = await loadDocuments(userId);
+          console.log('Documents loaded:', docs.length);
+          setDocuments(docs);
+        } else {
+          console.log('No user_id found in SecureStore');
           setDocuments([]);
         }
-      } else {
-        console.log('No user_id found in AsyncStorage');
-        setDocuments([]);
-      }
-    } catch (error) {
       console.error('Error loading data:', error);
       setDocuments([]);
     } finally {
