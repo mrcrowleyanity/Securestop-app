@@ -19,11 +19,6 @@ jobs:
         with:
           node-version: 20
 
-      - name: Enable Corepack and activate Yarn
-        run: |
-          corepack enable
-          corepack prepare yarn@1.22.22 --activate
-
       - name: Setup EAS
         uses: expo/expo-github-action@v8
         with:
@@ -32,7 +27,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: ./frontend
-        run: yarn install --frozen-lockfile
+        run: npm install --legacy-peer-deps
 
       - name: Setup Java
         uses: actions/setup-java@v4
