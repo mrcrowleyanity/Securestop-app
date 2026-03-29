@@ -235,10 +235,10 @@ export default function AddDocument() {
           onPress={() => setShowOptionsModal(true)}
         >
           {imageUri ? (
-            <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode=\"contain\" />
+            <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="contain" />
           ) : (
             <View style={styles.uploadPlaceholder}>
-              <Ionicons name=\"camera-outline\" size={48} color=\"#4dabf7\" />
+                        <Ionicons name="camera-outline" size={48} color="#4dabf7" />
               <Text style={styles.uploadText}>Tap to add document photo</Text>
             </View>
           )}
