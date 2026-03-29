@@ -36,7 +36,7 @@ export default function OfficerLogin() {
   const initializeScreen = async () => {
     try {
       // Check if user is authenticated
-      const userId = await SecureStore.getItemAsync;
+      const userId = await SecureStore.getItemAsync('user_id');
       if (!userId) {
         console.error('No user_id found - redirecting to setup');
         router.replace('/setup');
@@ -118,7 +118,7 @@ export default function OfficerLogin() {
 
     try {
       // Verify user is still authenticated
-      const userId = await SecureStore.getItemAsync;
+      const userId = await SecureStore.getItemAsync('user_id');
       if (!userId) {
         setError('Session expired. Please restart the app.');
         setIsLoading(false);
