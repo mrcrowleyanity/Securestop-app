@@ -113,7 +113,9 @@ const initSecureMode    = async () => {
         setPinningConfirmed(true);
       }
       
-      // Load data
+            // Mark secure mode as active in SecureStore (checked on app restart in index.tsx)
+      await SecureStore.setItemAsync('secure_mode_active', 'true');
+// Load data
       await loadData();
     } catch (error) {
       console.error('Init error:', error);
@@ -167,7 +169,8 @@ const initSecureMode    = async () => {
           console.log('No user_id found in SecureStore');
           setDocuments([]);
         }
-      console.error('Error loading data:', error);
+          } catch (error) {
+console.error('Error loading data:', error);
       setDocuments([]);
     } finally {
       setIsLoading(false);
@@ -224,7 +227,9 @@ const initSecureMode    = async () => {
           console.log('Screen pinning stopped after PIN verification');
         }
         
-        // Clear secure mode data
+              // Clear secure mode active flag from SecureStore
+      await SecureStore.deleteItemAsync('secure_mode_active');
+// Clear secure mode data
         await AsyncStorage.multiRemove([
           'current_officer_name',
           'current_officer_badge',
