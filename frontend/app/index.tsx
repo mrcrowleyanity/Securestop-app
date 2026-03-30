@@ -14,6 +14,15 @@ export default function Index() {
 
   const checkAuth = async () => {
     try {
+      // CRITICAL: Check if secure mode is active FIRST.
+      // If the user activated secure mode, we must return them there immediately
+      // instead of running normal auth flow which would redirect away.
+      const secureModeActive = await SecureStore.getItemAsync('secure_mode_active');
+      if (secureModeActive === 'true') {
+        router.replace('/secure-mode');
+        return;
+      }
+
       // Check if permissions have been set up
       const hasCheckedPermissions = await Permissions.hasCheckedPermissions();
 
@@ -30,17 +39,18 @@ export default function Index() {
       const userId = await SecureStore.getItemAsync('user_id');
       const userPin = await SecureStore.getItemAsync('user_pin');
 
-    // Check if user is authenticated and not in secure mode
-    if (userId && userPin) {
-      // We have local credentials securely stored, go home
-      router.replace('/home');
-    } else if (userId) {
-      // User has completed setup but secure mode is active - go to unlock
-      router.replace('/unlock');
-    } else {
-      // No valid local session - go to setup/login
-      router.replace('/setup');
-    }    } catch (error) {
+      // Check if user is authenticated and not in secure mode
+      if (userId && userPin) {
+        // We have local credentials securely stored, go home
+        router.replace('/home');
+      } else if (userId) {
+        // User has completed setup but secure mode is active - go to unlock
+        router.replace('/unlock');
+      } else {
+        // No valid local session - go to setup/login
+        router.replace('/setup');
+      }
+    } catch (error) {
       console.error('Auth check error:', error);
       router.replace('/setup');
     } finally {
@@ -57,11 +67,9 @@ export default function Index() {
         <Text style={styles.title}>Secure Stop</Text>
         <Text style={styles.subtitle}>Your documents, protected</Text>
       </View>
-
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Loading...</Text>
-      </View>
+      {isLoading && (
+        <ActivityIndicator size="large" color="#007AFF" style={styles.loader} />
+      )}
     </View>
   );
 }
@@ -69,20 +77,18 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f0f1a',
+    backgroundColor: '#0a0a1a',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
   },
   logoContainer: {
     alignItems: 'center',
-    marginBottom: 60,
   },
   iconCircle: {
-    width: 150,
-    height: 150,
-    borderRadius: 75,
-    backgroundColor: 'rgba(0, 122, 255, 0.1)',
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    backgroundColor: 'rgba(0, 122, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
@@ -90,21 +96,17 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(0, 122, 255, 0.3)',
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
     color: '#fff',
-    marginBottom: 8,
+    letterSpacing: 1,
   },
   subtitle: {
     fontSize: 16,
     color: '#888',
+    marginTop: 8,
   },
-  loadingContainer: {
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#888',
-    marginTop: 12,
-    fontSize: 14,
+  loader: {
+    marginTop: 60,
   },
 });
