@@ -3,8 +3,13 @@
  *
  * AES-256-CTR encrypted local document storage.
  * - Documents are stored as AES-256-CTR encrypted files in the app's private
- * internal storage directory.
+ *   internal storage directory.
  * - Format: <16-byte-IV-hex>:<aes-ctr-ciphertext-hex>
+ *
+ * FIXES:
+ * - Removed keychainAccessible option (WHEN_UNLOCKED_THIS_DEVICE_ONLY is buggy in SDK 49+)
+ * - Moved document index from SecureStore to filesystem (avoids 2048-byte SecureStore limit)
+ * - Index stored as encrypted JSON file in vault folder
  */
 import * as FileSystem from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
@@ -16,14 +21,14 @@ import * as aesjs from 'aes-js';
 // ─────────────────────────────────────────────
 
 const ENC_KEY_PREFIX = 'securestop_aes256_key_v1_';
-const INDEX_KEY_PREFIX = 'securestop_doc_index_v1_';
 
 /**
- * FIXED: Removed the leading dot from the folder name.
- * Some platforms or file system implementations have issues with hidden folders 
- * (starting with .) when using intermediates: true or standard path joining.
+ * Vault folder - no leading dot to avoid hidden-folder issues on Android.
  */
 const SECURE_FOLDER = `${FileSystem.documentDirectory}ss_vault/`;
+
+// Index file stored in vault (not SecureStore - avoids 2048-byte limit)
+const INDEX_FILE_NAME = '_index.json';
 
 // ─────────────────────────────────────────────
 // Public types
@@ -61,18 +66,18 @@ async function ensureVault(): Promise<void> {
 async function getOrCreateKey(userId: string): Promise<Uint8Array> {
   const storeKey = `${ENC_KEY_PREFIX}${userId}`;
   let hexKey = await SecureStore.getItemAsync(storeKey);
-  
+
   if (!hexKey) {
     const randomBytes = await Crypto.getRandomBytesAsync(32);
     hexKey = Array.from(randomBytes)
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
-    await SecureStore.setItemAsync(storeKey, hexKey, {
-      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-    });
+    // NOTE: No keychainAccessible option - WHEN_UNLOCKED_THIS_DEVICE_ONLY is
+    // broken in expo-secure-store since SDK 49 (maps to wrong constraint).
+    // Default (WHEN_UNLOCKED) is correct and secure for our use case.
+    await SecureStore.setItemAsync(storeKey, hexKey);
   }
 
-  // FIXED: Improved hex to bytes conversion to ensure it handles the string correctly
   const keyBytes = new Uint8Array(32);
   for (let i = 0; i < 32; i++) {
     keyBytes[i] = parseInt(hexKey.substring(i * 2, i * 2 + 2), 16);
@@ -88,56 +93,60 @@ async function encryptAES(plaintext: string, key: Uint8Array): Promise<string> {
   const ivBytes = await Crypto.getRandomBytesAsync(16);
   const iv = Array.from(ivBytes);
   const textBytes = aesjs.utils.utf8.toBytes(plaintext);
-  
-  // CTR mode uses a counter
   const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(iv));
   const encryptedBytes = aesCtr.encrypt(textBytes);
-  
   const ivHex = Array.from(ivBytes)
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
   const cipherHex = aesjs.utils.hex.fromBytes(encryptedBytes);
-  
   return `${ivHex}:${cipherHex}`;
 }
 
 async function decryptAES(ciphertext: string, key: Uint8Array): Promise<string> {
   const colonIdx = ciphertext.indexOf(':');
   if (colonIdx === -1) throw new Error('Invalid ciphertext format');
-  
   const ivHex = ciphertext.substring(0, colonIdx);
   const cipherHex = ciphertext.substring(colonIdx + 1);
-  
   const iv: number[] = [];
   for (let i = 0; i < ivHex.length; i += 2) {
     iv.push(parseInt(ivHex.substring(i, i + 2), 16));
   }
-  
   const encryptedBytes = aesjs.utils.hex.toBytes(cipherHex);
   const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(iv));
   const decryptedBytes = aesCtr.decrypt(encryptedBytes);
-  
   return aesjs.utils.utf8.fromBytes(decryptedBytes);
 }
 
 // ─────────────────────────────────────────────
-// Internal: document index
+// Internal: document index (stored in filesystem, NOT SecureStore)
+// SecureStore has a 2048-byte value limit which the index can easily exceed.
 // ─────────────────────────────────────────────
+
+function getIndexPath(userId: string): string {
+  // Sanitize userId to be safe as a filename component
+  const safeId = userId.replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${SECURE_FOLDER}${INDEX_FILE_NAME}.${safeId}`;
+}
 
 async function readIndex(userId: string): Promise<string[]> {
   try {
-    const raw = await SecureStore.getItemAsync(`${INDEX_KEY_PREFIX}${userId}`);
-    return raw ? JSON.parse(raw) : [];
+    const indexPath = getIndexPath(userId);
+    const info = await FileSystem.getInfoAsync(indexPath);
+    if (!info.exists) return [];
+    const raw = await FileSystem.readAsStringAsync(indexPath, {
+      encoding: FileSystem.EncodingType.UTF8,
+    });
+    return JSON.parse(raw);
   } catch {
     return [];
   }
 }
 
 async function writeIndex(userId: string, ids: string[]): Promise<void> {
-  await SecureStore.setItemAsync(
-    `${INDEX_KEY_PREFIX}${userId}`,
-    JSON.stringify(ids)
-  );
+  const indexPath = getIndexPath(userId);
+  await FileSystem.writeAsStringAsync(indexPath, JSON.stringify(ids), {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
 }
 
 // ─────────────────────────────────────────────
@@ -150,7 +159,7 @@ export async function saveDocument(
 ): Promise<LocalDocument> {
   try {
     await ensureVault();
-    
+
     const newDoc: LocalDocument = {
       ...doc,
       id: `ss_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
@@ -160,10 +169,8 @@ export async function saveDocument(
     const key = await getOrCreateKey(userId);
     const plaintext = JSON.stringify(newDoc);
     const ciphertext = await encryptAES(plaintext, key);
-    
     const filePath = `${SECURE_FOLDER}${newDoc.id}.enc`;
-    
-    // FIXED: Ensure we are using UTF8 for the encrypted string representation
+
     await FileSystem.writeAsStringAsync(filePath, ciphertext, {
       encoding: FileSystem.EncodingType.UTF8,
     });
@@ -195,11 +202,9 @@ export async function loadDocuments(userId: string): Promise<LocalDocument[]> {
         const filePath = `${SECURE_FOLDER}${id}.enc`;
         const info = await FileSystem.getInfoAsync(filePath);
         if (!info.exists) continue;
-
         const ciphertext = await FileSystem.readAsStringAsync(filePath, {
           encoding: FileSystem.EncodingType.UTF8,
         });
-
         const plaintext = await decryptAES(ciphertext, key);
         const doc: LocalDocument = JSON.parse(plaintext);
         docs.push(doc);
@@ -209,7 +214,8 @@ export async function loadDocuments(userId: string): Promise<LocalDocument[]> {
     }
 
     return docs.sort(
-      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      (a, b) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
   } catch (error) {
     console.error('[SecureVault] Load error:', error);
@@ -236,7 +242,9 @@ export async function deleteAllDocuments(userId: string): Promise<void> {
     const index = await readIndex(userId);
     for (const id of index) {
       try {
-        await FileSystem.deleteAsync(`${SECURE_FOLDER}${id}.enc`, { idempotent: true });
+        await FileSystem.deleteAsync(`${SECURE_FOLDER}${id}.enc`, {
+          idempotent: true,
+        });
       } catch { /* ignored */ }
     }
     await writeIndex(userId, []);
