@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { enterScreenPinning } from '../utils/screenPinning';
+import { initVault } from '../utils/secureDocumentStorage';
 
 export default function Home() {
   const [userEmail, setUserEmail] = useState('');
@@ -25,6 +26,7 @@ export default function Home() {
   useEffect(() => {
     loadUserData();
     requestLocationPermission();
+    initVault(); // Pre-create the secure storage folder on home mount
   }, []);
 
   const loadUserData = async () => {
