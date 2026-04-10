@@ -253,9 +253,14 @@ export async function deleteAllDocuments(userId: string): Promise<void> {
   }
 }
 
+export async function initVault(): Promise<void> {
+  await ensureVault();
+}
+
 export default {
   saveDocument,
   loadDocuments,
   deleteDocument,
   deleteAllDocuments,
+  initVault,
 };
