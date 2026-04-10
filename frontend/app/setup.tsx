@@ -14,6 +14,7 @@ import {
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
+import { initVault } from '../utils/secureDocumentStorage';
 
 export default function Setup() {
   const [mode, setMode] = useState<'choice' | 'register' | 'login'>('choice');
@@ -66,6 +67,7 @@ export default function Setup() {
       await SecureStore.setItemAsync('user_id', userId);
       await SecureStore.setItemAsync('user_email', email.trim().toLowerCase());
       await SecureStore.setItemAsync('user_pin', pin);
+      await initVault(); // Eagerly create the secure storage folder
 
       router.replace('/home');
     } catch (error) {
@@ -89,7 +91,8 @@ export default function Setup() {
       const localPin = await SecureStore.getItemAsync('user_pin');
 
       if (localEmail === email.trim().toLowerCase() && localPin === pin) {
-        router.replace('/home');
+        await initVault(); // Eagerly create the secure storage folder
+          router.replace('/home');
       } else {
         Alert.alert('Error', 'Invalid credentials or no account found on this device.');
       }
