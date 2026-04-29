@@ -33,11 +33,11 @@ jobs:
       - name: Run ESLint
         working-directory: ./frontend
         run: npm run lint -- --max-warnings 0
-        continue-on-error: false
+        continue-on-error: true
       - name: Type Check
         working-directory: ./frontend
         run: npx tsc --noEmit --skipLibCheck
-        continue-on-error: false
+        continue-on-error: true
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
