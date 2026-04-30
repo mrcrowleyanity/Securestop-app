@@ -12,7 +12,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
-  Dimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
@@ -23,7 +22,6 @@ import * as DocumentPicker from 'expo-document-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as FileSystem from 'expo-file-system';
 
-const { width, height } = Dimensions.get('window');
 
 const DOC_TYPES = [
   { id: 'id', label: "ID / Driver's License", icon: 'card' },
@@ -158,7 +156,7 @@ export default function AddDocument() {
 
       // Read image content as base64
       const base64Content = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: FileSystem.EncodingType.Base64,
+        encoding: 'base64',
       });
       const finalBase64 = `data:image/jpeg;base64,${base64Content}`;
 
