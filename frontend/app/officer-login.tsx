@@ -11,7 +11,7 @@ import {
   BackHandler,
   SafeAreaView,
   StatusBar,
-  from 'react-native';
+  } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
