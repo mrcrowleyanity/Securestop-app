@@ -143,7 +143,7 @@ export default function Home() {
               <View style={styles.stepNumber}>
                 <Text style={styles.stepNumberText}>2</Text>
               </View>
-              <Text style={styles.stepText}>Find "App Pinning" or "Screen Pinning"</Text>
+              <Text style={styles.stepText}>Find &quot;App Pinning&quot; or "Screen Pinning"</Text>
             </View>
             <View style={styles.stepItem}>
               <View style={styles.stepNumber}>
