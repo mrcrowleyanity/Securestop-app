@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import { Ionicons } from '@expo/vector-icons';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -80,7 +81,7 @@ export default function AccessHistory() {
     setIsExporting(true);
     try {
       const userId = await AsyncStorage.getItem('user_id');
-      const _userEmail = await AsyncStorage.getItem('user_email');
+      
       const response = await axios.get(`${API_URL}/api/access-log/${userId}/export`);
       const data = response.data;
 
