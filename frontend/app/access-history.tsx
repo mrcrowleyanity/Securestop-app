@@ -8,11 +8,9 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
-  Share,
   Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -68,7 +66,7 @@ export default function AccessHistory() {
 
   const openMap = (latitude?: number, longitude?: number) => {
     if (latitude && longitude) {
-      const url = Platform.select({
+      const _url = Platform.select({
         ios: `maps://app?daddr=${latitude},${longitude}`,
         android: `geo:${latitude},${longitude}?q=${latitude},${longitude}`,
         default: `https://maps.google.com/?q=${latitude},${longitude}`,
@@ -82,7 +80,7 @@ export default function AccessHistory() {
     setIsExporting(true);
     try {
       const userId = await AsyncStorage.getItem('user_id');
-      const userEmail = await AsyncStorage.getItem('user_email');
+      const _userEmail = await AsyncStorage.getItem('user_email');
       const response = await axios.get(`${API_URL}/api/access-log/${userId}/export`);
       const data = response.data;
 
