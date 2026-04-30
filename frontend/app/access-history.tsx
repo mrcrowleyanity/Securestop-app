@@ -8,8 +8,7 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
-  Platform,
-} from 'react-native';
+  from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as Print from 'expo-print';
@@ -67,11 +66,6 @@ export default function AccessHistory() {
 
   const openMap = (latitude?: number, longitude?: number) => {
     if (latitude && longitude) {
-      const _url = Platform.select({
-        ios: `maps://app?daddr=${latitude},${longitude}`,
-        android: `geo:${latitude},${longitude}?q=${latitude},${longitude}`,
-        default: `https://maps.google.com/?q=${latitude},${longitude}`,
-      });
       // For web preview, just show an alert
       Alert.alert('Location', `Latitude: ${latitude}\nLongitude: ${longitude}`);
     }
