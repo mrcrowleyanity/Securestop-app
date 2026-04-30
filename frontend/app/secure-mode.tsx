@@ -342,7 +342,7 @@ console.error('Error during PIN verification:', error);
   };
 
   // Group documents by type
-  const groupedDocs = documents.reduce((acc, doc) => {
+  const groupedDocs = documents.reduce((acc: { [key: string]: Document[] }, doc: Document) => {
     if (!acc[doc.doc_type]) {
       acc[doc.doc_type] = [];
     }
@@ -616,7 +616,7 @@ console.error('Error during PIN verification:', error);
             <Text style={styles.emptyText}>No documents uploaded</Text>
           </View>
         ) : (
-          Object.entries(groupedDocs).map(([type, docs]) => (
+          Object.entries(groupedDocs).map(([type, docs]: [string, Document[]]) => (
             <View key={type} style={styles.docGroup}>
               <View style={styles.docGroupHeader}>
                 <Ionicons name={getDocTypeIcon(type) as any} size={18} color="#007AFF" />
