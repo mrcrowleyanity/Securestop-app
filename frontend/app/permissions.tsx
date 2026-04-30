@@ -208,12 +208,12 @@ export default function PermissionsSetup() {
             
             <View style={styles.stepItem}>
               <View style={styles.stepNumber}><Text style={styles.stepNumberText}>2</Text></View>
-              <Text style={styles.stepText}>Search "pin" in the search bar</Text>
+              <Text style={styles.stepText}>Search &quot;pin&quot; in the search bar</Text>
             </View>
             
             <View style={styles.stepItem}>
               <View style={styles.stepNumber}><Text style={styles.stepNumberText}>3</Text></View>
-              <Text style={styles.stepText}>Find "Pin windows" or "Screen Pinning"</Text>
+              <Text style={styles.stepText}>Find &quot;Pin windows&quot; or &quot;Screen Pinning&quot;</Text>
             </View>
             
             <View style={styles.stepItem}>
