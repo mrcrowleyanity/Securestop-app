@@ -116,7 +116,7 @@ export default function Documents() {
   };
 
   // Group documents by type
-  const groupedDocs = documents.reduce((acc, doc) => {
+  const groupedDocs = documents.reduce((acc: { [key: string]: LocalDocument[] }, doc: LocalDocument) => {
     if (!acc[doc.doc_type]) {
       acc[doc.doc_type] = [];
     }
@@ -169,7 +169,7 @@ export default function Documents() {
             </TouchableOpacity>
           </View>
         ) : (
-          Object.entries(groupedDocs).map(([type, docs]) => (
+          Object.entries(groupedDocs).map(([type, docs]: [string, LocalDocument[]]) => (
             <View key={type} style={styles.docGroup}>
               <View style={styles.docGroupHeader}>
                 <Ionicons name={getDocTypeIcon(type)} size={18} color="#007AFF" />
