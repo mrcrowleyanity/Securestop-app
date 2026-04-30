@@ -11,16 +11,14 @@ import {
   BackHandler,
   SafeAreaView,
   StatusBar,
-  Alert,
-} from 'react-native';
+  from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-
 import * as SecureStore from 'expo-secure-store';
+
+
 export default function OfficerLogin() {
   const [officerName, setOfficerName] = useState('');
   const [badgeNumber, setBadgeNumber] = useState('');
@@ -31,7 +29,7 @@ export default function OfficerLogin() {
 
   useEffect(() => {
     initializeScreen();
-  }, []);
+  }, [initializeScreen]);
 
   const initializeScreen = async () => {
     try {
