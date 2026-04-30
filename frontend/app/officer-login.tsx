@@ -29,9 +29,9 @@ export default function OfficerLogin() {
 
   useEffect(() => {
     initializeScreen();
-  }, [initializeScreen]);
+    }, []);
 
-  const initializeScreen = async () => {
+    async function initializeScreen() {
     try {
       // Check if user is authenticated
       const userId = await SecureStore.getItemAsync('user_id');
