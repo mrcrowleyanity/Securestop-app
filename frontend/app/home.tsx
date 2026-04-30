@@ -148,8 +148,8 @@ export default function Home() {
             <View style={styles.stepItem}>
               <View style={styles.stepNumber}>
                 <Text style={styles.stepNumberText}>3</Text>
+                                    </View>
                           <Text style={styles.stepText}>Turn it ON and enable &quot;Ask for PIN to unpin&quot;</Text>
-              <Text style={styles.stepText}>Turn it ON and enable "Ask for PIN to unpin"</Text>
             </View>
             <View style={styles.stepItem}>
               <View style={styles.stepNumber}>
