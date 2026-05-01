@@ -377,19 +377,19 @@ console.error('Error during PIN verification:', error);
             <View style={styles.pinningSteps}>
               <Text style={styles.pinningStepTitle}>How to find Screen Pinning:</Text>
               <Text style={styles.pinningStep}>1. Go to Settings</Text>
-              <Text style={styles.pinningStep}>2. Search "pin" in the search bar</Text>
+              <Text style={styles.pinningStep}>2. Search {'"'}pin{'"'} in the search bar</Text>
               <Text style={styles.pinningStepOr}>— OR find manually —</Text>
               <Text style={styles.pinningStepSmall}>• Security → Screen/App Pinning</Text>
               <Text style={styles.pinningStepSmall}>• Security → Advanced → Screen Pinning</Text>
               <Text style={styles.pinningStepSmall}>• Biometrics & Security → Other → Pin windows</Text>
               <Text style={styles.pinningStep}>3. Turn it ON</Text>
-              <Text style={styles.pinningStep}>4. Enable "Ask for PIN before unpinning"</Text>
+              <Text style={styles.pinningStep}>4. Enable {'"'}Ask for PIN before unpinning{'"'}</Text>
             </View>
 
             <View style={styles.pinningTip}>
               <Ionicons name="bulb" size={18} color="#FF9500" />
               <Text style={styles.pinningTipText}>
-                TIP: Search "pin" in your Settings app to find it quickly!
+                TIP: Search {'"'}pin{'"'} in your Settings app to find it quickly!
               </Text>
             </View>
 
