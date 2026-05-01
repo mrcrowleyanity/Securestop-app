@@ -223,7 +223,7 @@ export default function PermissionsSetup() {
             
             <View style={styles.stepItem}>
               <View style={styles.stepNumber}><Text style={styles.stepNumberText}>5</Text></View>
-              <Text style={styles.stepText}>Enable "Ask for PIN to unpin"</Text>
+              <Text style={styles.stepText}>Enable {'"'}Ask for PIN to unpin{'"'}</Text>
             </View>
           </View>
 
