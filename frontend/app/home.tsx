@@ -175,7 +175,7 @@ export default function Home() {
             style={styles.dismissBtn}
             onPress={() => setShowPinningModal(false)}
           >
-            <Text style={styles.dismissBtnText}>I'll do this later</Text>
+            <Text style={styles.dismissBtnText}>I{"'"}ll do this later</Text>
           </TouchableOpacity>
         </View>
       </View>
