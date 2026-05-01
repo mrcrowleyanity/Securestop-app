@@ -8,7 +8,7 @@ import {
   Alert,
   RefreshControl,
   ActivityIndicator,
-  from 'react-native';
+  } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as Print from 'expo-print';
