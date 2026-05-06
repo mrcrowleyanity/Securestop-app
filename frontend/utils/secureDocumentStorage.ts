@@ -12,7 +12,6 @@
  * - Index stored as encrypted JSON file in vault folder
  */
 import * as FileSystem from 'expo-file-system';
-import { EncodingType, documentDirectory } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import * as aesjs from 'aes-js';
@@ -26,7 +25,7 @@ const ENC_KEY_PREFIX = 'securestop_aes256_key_v1_';
 /**
  * Vault folder - no leading dot to avoid hidden-folder issues on Android.
  */
-const SECURE_FOLDER = `${documentDirectory}ss_vault/`;
+const SECURE_FOLDER = `${FileSystem.documentDirectory}ss_vault/`;
 
 // Index file stored in vault (not SecureStore - avoids 2048-byte limit)
 const INDEX_FILE_NAME = '_index.json';
@@ -67,7 +66,6 @@ async function ensureVault(): Promise<void> {
 async function getOrCreateKey(userId: string): Promise<Uint8Array> {
   const storeKey = `${ENC_KEY_PREFIX}${userId}`;
   let hexKey = await SecureStore.getItemAsync(storeKey);
-
   if (!hexKey) {
     const randomBytes = await Crypto.getRandomBytesAsync(32);
     hexKey = Array.from(randomBytes)
@@ -78,7 +76,6 @@ async function getOrCreateKey(userId: string): Promise<Uint8Array> {
     // Default (WHEN_UNLOCKED) is correct and secure for our use case.
     await SecureStore.setItemAsync(storeKey, hexKey);
   }
-
   const keyBytes = new Uint8Array(32);
   for (let i = 0; i < 32; i++) {
     keyBytes[i] = parseInt(hexKey.substring(i * 2, i * 2 + 2), 16);
@@ -92,11 +89,11 @@ async function getOrCreateKey(userId: string): Promise<Uint8Array> {
 
 async function encryptAES(plaintext: string, key: Uint8Array): Promise<string> {
   const ivBytes = await Crypto.getRandomBytesAsync(16);
-  const iv = Array.from(ivBytes);
+  const iv = new Uint8Array(ivBytes);
   const textBytes = aesjs.utils.utf8.toBytes(plaintext);
   const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(iv));
   const encryptedBytes = aesCtr.encrypt(textBytes);
-  const ivHex = Array.from(ivBytes)
+  const ivHex = Array.from(iv)
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
   const cipherHex = aesjs.utils.hex.fromBytes(encryptedBytes);
@@ -108,10 +105,11 @@ async function decryptAES(ciphertext: string, key: Uint8Array): Promise<string> 
   if (colonIdx === -1) throw new Error('Invalid ciphertext format');
   const ivHex = ciphertext.substring(0, colonIdx);
   const cipherHex = ciphertext.substring(colonIdx + 1);
-  const iv: number[] = [];
+  const ivArr: number[] = [];
   for (let i = 0; i < ivHex.length; i += 2) {
-    iv.push(parseInt(ivHex.substring(i, i + 2), 16));
+    ivArr.push(parseInt(ivHex.substring(i, i + 2), 16));
   }
+  const iv = new Uint8Array(ivArr);
   const encryptedBytes = aesjs.utils.hex.toBytes(cipherHex);
   const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(iv));
   const decryptedBytes = aesCtr.decrypt(encryptedBytes);
@@ -135,7 +133,7 @@ async function readIndex(userId: string): Promise<string[]> {
     const info = await FileSystem.getInfoAsync(indexPath);
     if (!info.exists) return [];
     const raw = await FileSystem.readAsStringAsync(indexPath, {
-      encoding: EncodingType.UTF8,
+      encoding: FileSystem.EncodingType.UTF8,
     });
     return JSON.parse(raw);
   } catch {
@@ -146,7 +144,7 @@ async function readIndex(userId: string): Promise<string[]> {
 async function writeIndex(userId: string, ids: string[]): Promise<void> {
   const indexPath = getIndexPath(userId);
   await FileSystem.writeAsStringAsync(indexPath, JSON.stringify(ids), {
-    encoding: EncodingType.UTF8,
+    encoding: FileSystem.EncodingType.UTF8,
   });
 }
 
@@ -160,28 +158,23 @@ export async function saveDocument(
 ): Promise<LocalDocument> {
   try {
     await ensureVault();
-
     const newDoc: LocalDocument = {
       ...doc,
       id: `ss_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
       created_at: new Date().toISOString(),
     };
-
     const key = await getOrCreateKey(userId);
     const plaintext = JSON.stringify(newDoc);
     const ciphertext = await encryptAES(plaintext, key);
     const filePath = `${SECURE_FOLDER}${newDoc.id}.enc`;
-
     await FileSystem.writeAsStringAsync(filePath, ciphertext, {
-      encoding: EncodingType.UTF8,
+      encoding: FileSystem.EncodingType.UTF8,
     });
-
     const index = await readIndex(userId);
     if (!index.includes(newDoc.id)) {
       index.push(newDoc.id);
       await writeIndex(userId, index);
     }
-
     return newDoc;
   } catch (error) {
     console.error('[SecureVault] Save error:', error);
@@ -194,17 +187,15 @@ export async function loadDocuments(userId: string): Promise<LocalDocument[]> {
     await ensureVault();
     const index = await readIndex(userId);
     if (index.length === 0) return [];
-
     const key = await getOrCreateKey(userId);
     const docs: LocalDocument[] = [];
-
     for (const id of index) {
       try {
         const filePath = `${SECURE_FOLDER}${id}.enc`;
         const info = await FileSystem.getInfoAsync(filePath);
         if (!info.exists) continue;
         const ciphertext = await FileSystem.readAsStringAsync(filePath, {
-          encoding: EncodingType.UTF8,
+          encoding: FileSystem.EncodingType.UTF8,
         });
         const plaintext = await decryptAES(ciphertext, key);
         const doc: LocalDocument = JSON.parse(plaintext);
@@ -213,7 +204,6 @@ export async function loadDocuments(userId: string): Promise<LocalDocument[]> {
         console.warn(`[SecureVault] Failed to read doc ${id}:`, err);
       }
     }
-
     return docs.sort(
       (a, b) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
