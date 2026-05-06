@@ -50,7 +50,7 @@ export default function SecureMode() {
         const [, setPinningConfirmed] = useState(false);
   const [isLockTaskActive, setIsLockTaskActive] = useState(false);
 
-      // eslint-disable react-hooks/exhaustive-deps
+      
 useEffect(() => {
     initSecureMode();
     
@@ -64,9 +64,9 @@ useEffect(() => {
       // Cleanup on unmount
       cleanupSecureMode();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-    // eslint-enable react-hooks/exhaustive-deps
-
+    
 
 const initSecureMode    = async () => {
     try {
