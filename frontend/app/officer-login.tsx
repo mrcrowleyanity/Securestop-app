@@ -29,7 +29,8 @@ export default function OfficerLogin() {
 
   useEffect(() => {
     initializeScreen();
-    }, []);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
     async function initializeScreen() {
     try {
