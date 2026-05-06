@@ -12,6 +12,7 @@
  * - Index stored as encrypted JSON file in vault folder
  */
 import * as FileSystem from 'expo-file-system';
+import { EncodingType, documentDirectory } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import * as aesjs from 'aes-js';
@@ -25,7 +26,7 @@ const ENC_KEY_PREFIX = 'securestop_aes256_key_v1_';
 /**
  * Vault folder - no leading dot to avoid hidden-folder issues on Android.
  */
-const SECURE_FOLDER = `${FileSystem.documentDirectory}ss_vault/`;
+const SECURE_FOLDER = `${documentDirectory}ss_vault/`;
 
 // Index file stored in vault (not SecureStore - avoids 2048-byte limit)
 const INDEX_FILE_NAME = '_index.json';
@@ -134,7 +135,7 @@ async function readIndex(userId: string): Promise<string[]> {
     const info = await FileSystem.getInfoAsync(indexPath);
     if (!info.exists) return [];
     const raw = await FileSystem.readAsStringAsync(indexPath, {
-      encoding: FileSystem.EncodingType.UTF8,
+      encoding: EncodingType.UTF8,
     });
     return JSON.parse(raw);
   } catch {
@@ -145,7 +146,7 @@ async function readIndex(userId: string): Promise<string[]> {
 async function writeIndex(userId: string, ids: string[]): Promise<void> {
   const indexPath = getIndexPath(userId);
   await FileSystem.writeAsStringAsync(indexPath, JSON.stringify(ids), {
-    encoding: FileSystem.EncodingType.UTF8,
+    encoding: EncodingType.UTF8,
   });
 }
 
@@ -172,7 +173,7 @@ export async function saveDocument(
     const filePath = `${SECURE_FOLDER}${newDoc.id}.enc`;
 
     await FileSystem.writeAsStringAsync(filePath, ciphertext, {
-      encoding: FileSystem.EncodingType.UTF8,
+      encoding: EncodingType.UTF8,
     });
 
     const index = await readIndex(userId);
@@ -203,7 +204,7 @@ export async function loadDocuments(userId: string): Promise<LocalDocument[]> {
         const info = await FileSystem.getInfoAsync(filePath);
         if (!info.exists) continue;
         const ciphertext = await FileSystem.readAsStringAsync(filePath, {
-          encoding: FileSystem.EncodingType.UTF8,
+          encoding: EncodingType.UTF8,
         });
         const plaintext = await decryptAES(ciphertext, key);
         const doc: LocalDocument = JSON.parse(plaintext);
