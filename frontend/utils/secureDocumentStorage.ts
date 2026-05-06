@@ -11,7 +11,7 @@
  * - Moved document index from SecureStore to filesystem (avoids 2048-byte SecureStore limit)
  * - Index stored as encrypted JSON file in vault folder
  */
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import * as aesjs from 'aes-js';
