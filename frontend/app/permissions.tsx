@@ -12,7 +12,8 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import Permissions, { PermissionStatus } from '../utils/permissions';
+import * as Permissions from '../utils/permissions';
+import type { PermissionStatus } from '../utils/permissions';
 
 interface PermissionItem {
   key: keyof PermissionStatus;
@@ -230,7 +231,7 @@ export default function PermissionsSetup() {
           <View style={styles.pinningTip}>
             <Ionicons name="bulb" size={20} color="#FF9500" />
             <Text style={styles.pinningTipText}>
-              After setup: Open Recent Apps → Tap app icon → Select "Pin this app"
+              After setup: Open Recent Apps → Tap app icon → Select &quot;Pin this app&quot;
             </Text>
           </View>
 
@@ -247,7 +248,7 @@ export default function PermissionsSetup() {
             onPress={handleConfirmPinning}
           >
             <Ionicons name="checkmark-circle" size={20} color="#34C759" />
-            <Text style={styles.confirmPinningBtnText}>I've Enabled Screen Pinning</Text>
+            <Text style={styles.confirmPinningBtnText}>I&apos;ve Enabled Screen Pinning</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
