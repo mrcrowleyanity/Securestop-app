@@ -23,13 +23,9 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { loadDocuments } from '../utils/secureDocumentStorage';
 import ScreenPinning from '../modules/screen-pinning';
-import { checkSecureModePermissions } from '../utils/permissions';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
-const { width, height } = Dimensions.get('window');
-
-// Check if running in Expo Go (no native modules available)
-const isExpoGo = !ScreenPinning.isAvailable();
+const { width } = Dimensions.get('window');
 
 interface Document {
   id: string;
@@ -51,10 +47,11 @@ export default function SecureMode() {
   const [pinError, setPinError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [showPinningRequired, setShowPinningRequired] = useState(false);
-  const [pinningConfirmed, setPinningConfirmed] = useState(false);
+    const [_pinningConfirmed, setPinningConfirmed] = useState(false);
   const [isLockTaskActive, setIsLockTaskActive] = useState(false);
 
-  useEffect(() => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+useEffect(() => {
     initSecureMode();
     
     // Failsafe timeout
