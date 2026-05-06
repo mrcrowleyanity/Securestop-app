@@ -408,7 +408,7 @@ console.error('Error during PIN verification:', error);
               activeOpacity={0.8}
             >
               <Ionicons name="checkmark-circle" size={22} color="#34C759" />
-              <Text style={styles.confirmPinningButtonText}>I've Enabled Screen Pinning</Text>
+              <Text style={styles.confirmPinningButtonText}>I&apos;ve Enabled Screen Pinning</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -437,7 +437,7 @@ console.error('Error during PIN verification:', error);
           <View style={styles.exitModalHeader}>
             <Ionicons name="lock-open" size={40} color="#007AFF" />
             <Text style={styles.exitModalTitle}>Exit Secure Mode</Text>
-            <Text style={styles.exitModalSubtitle}>Enter device owner's PIN</Text>
+            <Text style={styles.exitModalSubtitle}>Enter device owner&apos;s PIN</Text>
           </View>
 
           {pinError ? (
