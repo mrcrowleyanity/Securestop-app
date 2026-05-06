@@ -47,10 +47,10 @@ export default function SecureMode() {
   const [pinError, setPinError] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
   const [showPinningRequired, setShowPinningRequired] = useState(false);
-    const [_pinningConfirmed, setPinningConfirmed] = useState(false);
+        const [, setPinningConfirmed] = useState(false);
   const [isLockTaskActive, setIsLockTaskActive] = useState(false);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      // eslint-disable react-hooks/exhaustive-deps
 useEffect(() => {
     initSecureMode();
     
@@ -65,6 +65,7 @@ useEffect(() => {
       cleanupSecureMode();
     };
   }, []);
+    // eslint-enable react-hooks/exhaustive-deps
 
 
 const initSecureMode    = async () => {
