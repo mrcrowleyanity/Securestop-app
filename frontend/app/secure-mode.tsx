@@ -283,7 +283,7 @@ console.error('Error during PIN verification:', error);
           try {
             await Linking.sendIntent(intent);
             return;
-          } catch (e) {
+                  } catch {
             continue;
           }
         }
@@ -291,7 +291,7 @@ console.error('Error during PIN verification:', error);
       } else {
         await Linking.openSettings();
       }
-    } catch (error) {
+      } catch {
       await Linking.openSettings();
     }
   };
