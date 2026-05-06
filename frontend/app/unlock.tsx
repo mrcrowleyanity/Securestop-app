@@ -7,7 +7,6 @@ import {
   Alert,
   ActivityIndicator,
   Vibration,
-  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
@@ -24,6 +23,7 @@ export default function Unlock() {
   const [showCamera, setShowCamera] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!permission?.granted) {
       requestPermission();
@@ -105,7 +105,7 @@ export default function Unlock() {
     // Optionally capture photo of intruder locally
     try {
       await captureIntruderPhoto();
-    } catch (e) {
+    } catch {
       console.log('Could not capture photo');
     }
     if (newAttempts >= 3) {
@@ -140,6 +140,7 @@ export default function Unlock() {
       ['7', '8', '9'],
       ['', '0', 'back'],
     ];
+
     return (
       <View style={styles.keypad}>
         {rows.map((row, rowIndex) => (
@@ -156,7 +157,7 @@ export default function Unlock() {
                     onPress={handleBackspace}
                     disabled={isLocked}
                   >
-                    <Ionicons name="backspace" size={24} color={isLocked ? '#444' : '#fff'} />
+                    <Ionicons name="backspace-outline" size={24} color={isLocked ? '#444' : '#fff'} />
                   </TouchableOpacity>
                 );
               }
@@ -167,7 +168,9 @@ export default function Unlock() {
                   onPress={() => handleNumberPress(key)}
                   disabled={isLocked}
                 >
-                  <Text style={[styles.keyText, isLocked && styles.keyTextDisabled]}>{key}</Text>
+                  <Text style={[styles.keyText, isLocked && styles.keyTextDisabled]}>
+                    {key}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
@@ -182,7 +185,7 @@ export default function Unlock() {
       {/* Hidden camera for intruder capture */}
       {showCamera && (
         <View style={styles.hiddenCamera}>
-          <CameraView ref={cameraRef} style={styles.camera} />
+          <CameraView ref={cameraRef} style={styles.camera} facing="front" />
         </View>
       )}
 
@@ -195,13 +198,13 @@ export default function Unlock() {
       </View>
 
       <View style={styles.securityBadge}>
-        <Ionicons name="shield-checkmark" size={14} color="#FF9500" />
+        <Ionicons name="shield-checkmark" size={16} color="#FF9500" />
         <Text style={styles.securityText}>Security camera active</Text>
       </View>
 
       {isLocked && (
         <View style={styles.lockoutBanner}>
-          <Ionicons name="time" size={20} color="#FF3B30" />
+          <Ionicons name="timer-outline" size={20} color="#FF3B30" />
           <Text style={styles.lockoutText}>Locked for {lockTimer} seconds</Text>
         </View>
       )}
@@ -222,9 +225,9 @@ export default function Unlock() {
       {renderKeypad()}
 
       <TouchableOpacity
-        style={[styles.submitButton, (isLoading || isLocked) && styles.submitButtonDisabled]}
+        style={[styles.submitButton, isLocked && styles.submitButtonDisabled]}
         onPress={handlePinSubmit}
-        disabled={isLoading || isLocked}
+        disabled={isLocked || isLoading}
       >
         {isLoading ? (
           <ActivityIndicator color="#fff" />
