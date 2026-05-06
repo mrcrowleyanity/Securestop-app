@@ -23,12 +23,11 @@ export default function Unlock() {
   const [showCamera, setShowCamera] = useState(false);
   const cameraRef = useRef<CameraView>(null);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!permission?.granted) {
       requestPermission();
     }
-  }, []);
+  }, [permission, requestPermission]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
