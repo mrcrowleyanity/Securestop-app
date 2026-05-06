@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
-import Permissions from '../utils/permissions';
+import * as Permissions from '../utils/permissions';
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
