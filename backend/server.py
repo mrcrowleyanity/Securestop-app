@@ -229,7 +229,7 @@ async def create_user(user: UserCreate):
         created_at=user_dict["created_at"],
         is_premium=user_dict["is_premium"]
     )
-    @api_router.get("/users/by-email/{email}", response_model=UserResponse)
+@api_router.get("/users/by-email/{email}", response_model=UserResponse)
 async def get_user_by_email(email: str):
     """Get user by email"""
     user = await db.users.find_one({"email": email.lower()})
