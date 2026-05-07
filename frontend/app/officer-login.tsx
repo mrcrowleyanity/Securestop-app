@@ -139,6 +139,8 @@ export default function OfficerLogin() {
 
       // Use multiSet for atomic operation
       await AsyncStorage.multiSet(dataToStore);
+          // Also write to SecureStore so index.tsx can guard the secure mode route
+          await SecureStore.setItemAsync('secure_mode_active', 'true');
 
       console.log('Officer credentials saved successfully');
       console.log('- Officer:', officerName.trim());
