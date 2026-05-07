@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import * as Permissions from '../utils/permissions';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function Index() {
   const [isLoading, setIsLoading] = useState(true);
@@ -18,7 +19,8 @@ export default function Index() {
       // If the user activated secure mode, we must return them there immediately
       // instead of running normal auth flow which would redirect away.
       const secureModeActive = await SecureStore.getItemAsync('secure_mode_active');
-      if (secureModeActive === 'true') {
+    const secureModeActiveAsync = await AsyncStorage.getItem('secure_mode_active');      
+      if (secureModeActive === 'true' || secureModeActiveAsync === 'true') {
         router.replace('/secure-mode');
         return;
       }
