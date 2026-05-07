@@ -19,7 +19,7 @@ export default function Index() {
       // If the user activated secure mode, we must return them there immediately
       // instead of running normal auth flow which would redirect away.
       const secureModeActive = await SecureStore.getItemAsync('secure_mode_active');
-    const secureModeActiveAsync = await AsyncStorage.getItem('secure_mode_active');      
+      const secureModeActiveAsync = await AsyncStorage.getItem('secure_mode_active');      
       if (secureModeActive === 'true' || secureModeActiveAsync === 'true') {
         router.replace('/secure-mode');
         return;
