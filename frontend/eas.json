@@ -23,7 +23,7 @@
       }
     },
     "production": {
-      "autoIncrement": false,
+      "autoIncrement": true,
       "withoutCredentials": true,
       "distribution": "internal",
       "android": {
