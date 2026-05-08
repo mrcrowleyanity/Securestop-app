@@ -8,14 +8,16 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NPM_CONFIG_LEGACY_PEER_DEPS: "true"
-          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     steps:
       - name: Checkout repo
         uses: actions/checkout@v5
+
       - name: Setup Node
-                    uses: actions/setup-node@v6
+        uses: actions/setup-node@v6
         with:
           node-version: 22
+
       - name: Cache npm dependencies
         uses: actions/cache@v4
         with:
@@ -23,27 +25,33 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
+
       - name: Setup EAS
         uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
+
       - name: Install dependencies
         working-directory: ./frontend
         run: npm install --legacy-peer-deps
+
       - name: Run ESLint
         working-directory: ./frontend
         run: npm run lint -- --max-warnings 0
         continue-on-error: true
+
       - name: Type Check
         working-directory: ./frontend
         run: npx tsc --noEmit --skipLibCheck
         continue-on-error: true
+
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+
       - name: Run Expo Prebuild
         working-directory: ./frontend
         env:
@@ -51,6 +59,7 @@ jobs:
         run: |
           npx expo prebuild --clean --platform android
           chmod +x android/gradlew
+
       - name: Patch Kotlin and AGP versions
         working-directory: ./frontend/android
         run: |
@@ -59,24 +68,24 @@ jobs:
           sed -i 's/com\.android\.tools\.build:gradle:[0-9][0-9.]*/com.android.tools.build:gradle:8.3.2/g' build.gradle
           echo "Patched build.gradle:"
           cat build.gradle
+
       - name: Download Gradle Wrapper JAR
         run: |
           GRADLE_VERSION=$(grep distributionUrl frontend/android/gradle/wrapper/gradle-wrapper.properties | sed 's/.*gradle-\(.*\)-bin.zip/\1/')
           echo "Downloading Gradle ${GRADLE_VERSION}..."
           mkdir -p frontend/android/gradle/wrapper
           curl -L "https://github.com/gradle/gradle/raw/refs/tags/v${GRADLE_VERSION}/gradle/wrapper/gradle-wrapper.jar" -o frontend/android/gradle/wrapper/gradle-wrapper.jar
-          # Verify download succeeded
           if [ ! -f "frontend/android/gradle/wrapper/gradle-wrapper.jar" ]; then
-            echo "❌ Failed to download Gradle wrapper"
+            echo "Failed to download Gradle wrapper"
             exit 1
           fi
-          echo "✅ Gradle wrapper downloaded successfully"
+          echo "Gradle wrapper downloaded successfully"
+
       - name: Generate Android Keystore
         working-directory: ./frontend
         run: |
-          # For development builds only - use EAS credentials management
           if [ -z "${{ secrets.EAS_KEYSTORE_BASE64 }}" ]; then
-            echo "⚠️  Using ephemeral dev keystore (not suitable for production)"
+            echo "Using ephemeral dev keystore (not suitable for production)"
             keytool -genkeypair -v \
               -keystore android.keystore \
               -alias dev-key \
@@ -90,11 +99,13 @@ jobs:
             echo "Using production keystore from secrets"
             echo "${{ secrets.EAS_KEYSTORE_BASE64 }}" | base64 -d > android.keystore
           fi
+
       - name: Build Android dev client (APK)
         working-directory: ./frontend
         env:
           EXPO_NO_DOCTOR: "1"
         run: eas build --profile development --platform android --local --output ./build.apk
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
