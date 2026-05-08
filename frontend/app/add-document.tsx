@@ -20,7 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { CameraView, useCameraPermissions } from 'expo-camera';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 
 
 const DOC_TYPES = [
@@ -156,7 +156,7 @@ export default function AddDocument() {
 
       // Read image content as base64
       const base64Content = await FileSystem.readAsStringAsync(imageUri, {
-        encoding: 'base64',
+              encoding: FileSystem.EncodingType.Base64,
       });
       const finalBase64 = `data:image/jpeg;base64,${base64Content}`;
 
