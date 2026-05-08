@@ -8,13 +8,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NPM_CONFIG_LEGACY_PEER_DEPS: "true"
+          FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Setup Node
-        uses: actions/setup-node@v4
+                    uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
       - name: Cache npm dependencies
         uses: actions/cache@v4
         with:
