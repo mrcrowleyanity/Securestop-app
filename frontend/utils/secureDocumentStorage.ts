@@ -89,7 +89,7 @@ async function getOrCreateKey(userId: string): Promise<Uint8Array> {
 
 async function encryptAES(plaintext: string, key: Uint8Array): Promise<string> {
   const ivBytes = await Crypto.getRandomBytesAsync(16);
-  const iv = new Uint8Array(ivBytes);
+    const iv: number[] = Array.from(ivBytes);
   const textBytes = aesjs.utils.utf8.toBytes(plaintext);
   const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(iv));
   const encryptedBytes = aesCtr.encrypt(textBytes);
@@ -109,7 +109,7 @@ async function decryptAES(ciphertext: string, key: Uint8Array): Promise<string> 
   for (let i = 0; i < ivHex.length; i += 2) {
     ivArr.push(parseInt(ivHex.substring(i, i + 2), 16));
   }
-  const iv = new Uint8Array(ivArr);
+    const iv: number[] = ivArr;
   const encryptedBytes = aesjs.utils.hex.toBytes(cipherHex);
   const aesCtr = new aesjs.ModeOfOperation.ctr(key, new aesjs.Counter(iv));
   const decryptedBytes = aesCtr.decrypt(encryptedBytes);
