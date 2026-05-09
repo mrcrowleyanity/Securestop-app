@@ -1,160 +1,135 @@
 /**
- * Screen Pinning Module for React Native
- * 
- * This module provides a JavaScript interface to Android's Lock Task Mode (screen pinning).
- * It allows the app to pin itself to the screen, preventing users from leaving the app.
- * 
- * IMPORTANT: This module requires a development build to work.
- * It will NOT work in Expo Go - a warning will be shown instead.
- * 
- * Usage:
- *   import ScreenPinning from '../modules/screen-pinning';
- *   
- *   // Start screen pinning
- *   const success = await ScreenPinning.startLockTask();
- *   
- *   // Stop screen pinning (requires PIN verification in the app)
- *   await ScreenPinning.stopLockTask();
- *   
- *   // Check if currently pinned
- *   const isPinned = await ScreenPinning.isInLockTaskMode();
+ * Screen Pinning / Lock Task module
+ *
+ * Backed by @akbaraditamasp/expo-lock-task on Android.
+ * The NativeModules.ScreenPinningModule approach has been removed — there is
+ * no corresponding Kotlin module, so that path was always undefined at runtime.
+ *
+ * API surface is intentionally identical to the old NativeModules version so
+ * that secure-mode.tsx requires zero changes.
  */
 
-import { Platform, NativeModules, Alert, Linking } from 'react-native';
+import { Platform, Alert, Linking } from 'react-native';
 
-// Check if we have native module access
-const hasNativeModule = Platform.OS === 'android' && NativeModules.ScreenPinningModule;
+// ---------------------------------------------------------------------------
+// Lazy-load the native package so we never crash on iOS (where the native
+// side simply isn't compiled in).
+// ---------------------------------------------------------------------------
 
-/**
- * Screen Pinning API
- */
+interface ExpoLockTask {
+  startLockTask(): Promise<boolean>;
+  stopLockTask(): Promise<boolean>;
+  /** Note: the package exposes isLockTaskMode(), not isInLockTaskMode() */
+  isLockTaskMode(): Promise<boolean>;
+}
+
+function getLockTaskModule(): ExpoLockTask | null {
+  if (Platform.OS !== 'android') return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const mod = require('@akbaraditamasp/expo-lock-task').default as ExpoLockTask;
+    if (typeof mod?.startLockTask === 'function') return mod;
+    console.warn('[ScreenPinning] @akbaraditamasp/expo-lock-task loaded but API missing');
+    return null;
+  } catch (e) {
+    console.warn('[ScreenPinning] Failed to load @akbaraditamasp/expo-lock-task:', e);
+    return null;
+  }
+}
+
+// Resolve once at module load; on Android this is the linked native module.
+const LockTask = getLockTaskModule();
+
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 const ScreenPinning = {
   /**
-   * Check if we're running in a development build with native module support
+   * Returns true only on Android when the native module is present and linked.
+   * Always false on iOS — screen pinning is an Android-only concept.
    */
   isAvailable(): boolean {
-    return hasNativeModule;
+    return LockTask !== null;
   },
 
   /**
-   * Start Lock Task Mode (screen pinning)
-   * 
-   * @returns Promise<boolean> - true if successful, false otherwise
+   * Starts Android Lock Task mode (screen pinning).
+   * Resolves to true if the system accepted the request.
    */
   async startLockTask(): Promise<boolean> {
-    if (Platform.OS !== 'android') {
-      console.log('Screen pinning is only available on Android');
-      return false;
-    }
-
-    if (!hasNativeModule) {
-      // Show warning for Expo Go users
-      console.log('Screen pinning requires a development build. Falling back to manual instructions.');
-      return false;
-    }
-
+    if (!LockTask) return false;
     try {
-      const result = await NativeModules.ScreenPinningModule.startLockTask();
+      const result = await LockTask.startLockTask();
       return result === true;
     } catch (error) {
-      console.error('Failed to start lock task:', error);
+      console.error('[ScreenPinning] startLockTask error:', error);
       return false;
     }
   },
 
   /**
-   * Stop Lock Task Mode (unpin the screen)
-   * 
-   * @returns Promise<boolean> - true if successful, false otherwise
+   * Stops Android Lock Task mode.
+   * Resolves to true if the system accepted the request.
    */
   async stopLockTask(): Promise<boolean> {
-    if (Platform.OS !== 'android') {
-      return false;
-    }
-
-    if (!hasNativeModule) {
-      return false;
-    }
-
+    if (!LockTask) return false;
     try {
-      const result = await NativeModules.ScreenPinningModule.stopLockTask();
+      const result = await LockTask.stopLockTask();
       return result === true;
     } catch (error) {
-      console.error('Failed to stop lock task:', error);
+      console.error('[ScreenPinning] stopLockTask error:', error);
       return false;
     }
   },
 
   /**
-   * Check if the app is currently in Lock Task Mode
-   * 
-   * @returns Promise<boolean> - true if in lock task mode, false otherwise
+   * Returns true if the device is currently in Lock Task mode.
+   * Maps the package's `isLockTaskMode()` to our `isInLockTaskMode()` name.
    */
   async isInLockTaskMode(): Promise<boolean> {
-    if (Platform.OS !== 'android') {
-      return false;
-    }
-
-    if (!hasNativeModule) {
-      return false;
-    }
-
+    if (!LockTask) return false;
     try {
-      const result = await NativeModules.ScreenPinningModule.isInLockTaskMode();
+      const result = await LockTask.isLockTaskMode();
       return result === true;
     } catch (error) {
-      console.error('Failed to check lock task mode:', error);
+      console.error('[ScreenPinning] isInLockTaskMode error:', error);
       return false;
     }
   },
 
   /**
-   * Open Android security settings for manual screen pinning setup
+   * Deep-links to the Android security settings page where an admin can
+   * enable/disable the device owner policy for lock task whitelisting.
    */
   async openSecuritySettings(): Promise<void> {
     try {
-      if (Platform.OS === 'android') {
-        // Try to open security settings directly
-        const opened = await Linking.openURL('android.settings.SECURITY_SETTINGS');
-        if (!opened) {
-          await Linking.openSettings();
-        }
-      } else {
-        await Linking.openSettings();
-      }
-    } catch (error) {
       await Linking.openSettings();
+    } catch {
+      Alert.alert(
+        'Open Settings',
+        'Please open Settings → Security → Device Admin Apps to manage screen pinning permissions.',
+        [{ text: 'OK' }]
+      );
     }
   },
 
   /**
-   * Show instructions for manual screen pinning setup
+   * Shows a user-friendly alert with manual screen-pinning instructions for
+   * devices where programmatic pinning is unavailable (e.g. non-whitelisted).
    */
   showManualInstructions(): void {
     Alert.alert(
-      'Enable Screen Pinning',
-      `To enable screen pinning on your Samsung S24:
-
-1. Go to Settings
-2. Search for "pin" in the search bar
-3. Look for "Pin windows" or "Screen Pinning"
-4. Turn it ON
-5. Enable "Ask for PIN/Pattern to unpin"
-
-After enabling:
-• Open Recent Apps (swipe up)
-• Tap the app icon at the top of the card
-• Select "Pin this app"`,
-      [
-        {
-          text: 'Open Settings',
-          onPress: () => ScreenPinning.openSecuritySettings(),
-        },
-        {
-          text: 'Got it',
-          style: 'cancel',
-        },
-      ]
+      'Enable Screen Pinning Manually',
+      Platform.OS === 'android'
+        ? 'To pin this screen manually:\n\n' +
+          '1. Tap the Recents button (square icon)\n' +
+          '2. Find the SecureStop card\n' +
+          '3. Tap the app icon at the top of the card\n' +
+          '4. Select "Pin"\n\n' +
+          'To unpin: hold Back + Recents simultaneously.'
+        : 'Screen pinning is only available on Android.',
+      [{ text: 'Got it' }]
     );
   },
 };
