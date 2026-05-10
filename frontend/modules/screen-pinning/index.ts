@@ -6,18 +6,20 @@
  *
  * Updated for RN 0.81 New Architecture (Bridgeless mode):
  * - Uses TurboModuleRegistry.get() instead of NativeModules (dead bridge in bridgeless mode)
+ * - Interface extends TurboModule to satisfy TurboModuleRegistry type constraints
  *
  * On Android: calls Activity.startLockTask() / stopLockTask() directly via TurboModuleRegistry.
  * On iOS: screen pinning is not supported; all methods are no-ops.
  */
 
 import { TurboModuleRegistry, Platform } from 'react-native';
+import type { TurboModule } from 'react-native';
 
 // ---------------------------------------------------------------------------
 // Native module interface
 // ---------------------------------------------------------------------------
 
-interface ScreenPinningNativeModule {
+interface ScreenPinningNativeModule extends TurboModule {
   startLockTask(): Promise<boolean>;
   stopLockTask(): Promise<boolean>;
   isInLockTaskMode(): Promise<boolean>;
@@ -39,6 +41,10 @@ const Native = getNativeModule();
 // ---------------------------------------------------------------------------
 
 const ScreenPinning = {
+  isAvailable(): boolean {
+    return Native !== null;
+  },
+
   async startLockTask(): Promise<boolean> {
     if (!Native) {
       console.warn('[ScreenPinning] Module not available on this platform or not loaded');
