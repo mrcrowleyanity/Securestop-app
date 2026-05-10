@@ -1,17 +1,33 @@
-/**
- * @deprecated
- *
- * This file previously contained a standalone screen-pinning implementation
- * using @akbaraditamasp/expo-lock-task directly.
- *
- * The canonical implementation now lives in:
- *   frontend/modules/screen-pinning/index.ts
- *
- * This file is kept as a thin re-export so that any existing imports of
- * '../utils/screenPinning' continue to resolve without requiring a find-and-
- * replace across the codebase. New code should import from the module directly:
- *
- *   import ScreenPinning from '../modules/screen-pinning';
- */
+import ScreenPinning from '../modules/screen-pinning';
 
 export { default } from '../modules/screen-pinning';
+
+export async function enterScreenPinning(): Promise<{ success: boolean; message?: string }> {
+  try {
+    const success = await ScreenPinning.startLockTask();
+    return {
+      success,
+      message: success ? 'Screen pinning started.' : 'Screen pinning could not be started.',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error starting screen pinning.',
+    };
+  }
+}
+
+export async function exitScreenPinning(): Promise<{ success: boolean; message?: string }> {
+  try {
+    const success = await ScreenPinning.stopLockTask();
+    return {
+      success,
+      message: success ? 'Screen pinning stopped.' : 'Screen pinning could not be stopped.',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Unknown error stopping screen pinning.',
+    };
+  }
+}
