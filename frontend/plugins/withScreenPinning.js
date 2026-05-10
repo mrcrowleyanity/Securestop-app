@@ -25,45 +25,37 @@ class ScreenPinningModule(private val reactContext: ReactApplicationContext) :
 
     override fun getName(): String = "ScreenPinning"
 
-    @ReactMethod
-    fun startLockTask(promise: Promise) {
-        val activity: Activity? = currentActivity
+    private fun requireActivity(promise: Promise): Activity? {
+        val activity: Activity? = reactContext.currentActivity
         if (activity == null) {
             promise.reject("NO_ACTIVITY", "No current activity found")
-            return
         }
-        try {
-            activity.runOnUiThread {
-                try {
-                    activity.startLockTask()
-                    promise.resolve(true)
-                } catch (e: Exception) {
-                    promise.reject("START_FAILED", "startLockTask failed: ${'$'}{e.message}", e)
-                }
+        return activity
+    }
+
+    @ReactMethod
+    fun startLockTask(promise: Promise) {
+        val activity = requireActivity(promise) ?: return
+        activity.runOnUiThread {
+            try {
+                activity.startLockTask()
+                promise.resolve(true)
+            } catch (e: Exception) {
+                promise.reject("START_FAILED", "startLockTask failed: ${'$'}{e.message}", e)
             }
-        } catch (e: Exception) {
-            promise.reject("START_FAILED", "startLockTask failed: ${'$'}{e.message}", e)
         }
     }
 
     @ReactMethod
     fun stopLockTask(promise: Promise) {
-        val activity: Activity? = currentActivity
-        if (activity == null) {
-            promise.reject("NO_ACTIVITY", "No current activity found")
-            return
-        }
-        try {
-            activity.runOnUiThread {
-                try {
-                    activity.stopLockTask()
-                    promise.resolve(true)
-                } catch (e: Exception) {
-                    promise.reject("STOP_FAILED", "stopLockTask failed: ${'$'}{e.message}", e)
-                }
+        val activity = requireActivity(promise) ?: return
+        activity.runOnUiThread {
+            try {
+                activity.stopLockTask()
+                promise.resolve(true)
+            } catch (e: Exception) {
+                promise.reject("STOP_FAILED", "stopLockTask failed: ${'$'}{e.message}", e)
             }
-        } catch (e: Exception) {
-            promise.reject("STOP_FAILED", "stopLockTask failed: ${'$'}{e.message}", e)
         }
     }
 
@@ -71,15 +63,15 @@ class ScreenPinningModule(private val reactContext: ReactApplicationContext) :
     fun isInLockTaskMode(promise: Promise) {
         try {
             val am = reactContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            val lockTaskMode: Int = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                am.lockTaskModeState
+            val isLocked = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                am.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE
             } else {
                 @Suppress("DEPRECATION")
-                if (am.isInLockTaskMode) 1 else 0
+                am.isInLockTaskMode
             }
-            promise.resolve(lockTaskMode != ActivityManager.LOCK_TASK_MODE_NONE)
+            promise.resolve(isLocked)
         } catch (e: Exception) {
-            promise.reject("QUERY_FAILED", "isInLockTaskMode failed: ${'$'}{e.message}", e)
+            promise.reject("CHECK_FAILED", "isInLockTaskMode failed: ${'$'}{e.message}", e)
         }
     }
 }
@@ -145,7 +137,6 @@ function withScreenPinningMainApplication(config) {
 
     // Add import if not present
     if (!contents.includes(IMPORT_LINE)) {
-      // Insert after the last 'import' line
       const lastImportIdx = contents.lastIndexOf('\nimport ');
       if (lastImportIdx !== -1) {
         const endOfLine = contents.indexOf('\n', lastImportIdx + 1);
@@ -164,9 +155,7 @@ function withScreenPinningMainApplication(config) {
       );
     } else if (!contents.includes('ScreenPinningPackage()')) {
       console.warn(
-        '[withScreenPinning] Could not find the expected anchor string in MainApplication.kt.\n' +
-        'Expected: "' + APPLY_ANCHOR + '"\n' +
-        'Please add `add(ScreenPinningPackage())` to your getPackages() manually.'
+        '[withScreenPinning] Could not find anchor in MainApplication.kt: "' + APPLY_ANCHOR + '"'
       );
     }
 
