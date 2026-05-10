@@ -46,9 +46,8 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
-      "expo-router",
-          "@akbaraditamasp/expo-lock-task"
-    ],
+      "expo-router"
+          ]
     "experiments": {
       "typedRoutes": true
     },
