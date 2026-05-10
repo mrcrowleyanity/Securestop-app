@@ -1,44 +1,50 @@
 /**
  * Screen Pinning / Lock Task module
  *
- * Backed by @akbaraditamasp/expo-lock-task on Android.
- * The NativeModules.ScreenPinningModule approach has been removed — there is
- * no corresponding Kotlin module, so that path was always undefined at runtime.
+ * Uses the custom native ScreenPinningModule (com.securestop.app.ScreenPinningModule)
+ * which is injected into the Android build via the withScreenPinning Expo config plugin.
  *
- * API surface is intentionally identical to the old NativeModules version so
- * that secure-mode.tsx requires zero changes.
+ * On Android: calls Activity.startLockTask() / stopLockTask() directly via NativeModules.
+ * On iOS: screen pinning is not supported; all methods are no-ops.
  */
-
-import { Platform, Alert, Linking } from 'react-native';
+import { NativeModules, Platform, Alert, Linking } from 'react-native';
 
 // ---------------------------------------------------------------------------
-// Lazy-load the native package so we never crash on iOS (where the native
-// side simply isn't compiled in).
+// Native module interface
 // ---------------------------------------------------------------------------
 
-interface ExpoLockTask {
+interface ScreenPinningNativeModule {
   startLockTask(): Promise<boolean>;
   stopLockTask(): Promise<boolean>;
-  /** Note: the package exposes isLockTaskMode(), not isInLockTaskMode() */
-  isLockTaskMode(): Promise<boolean>;
+  isInLockTaskMode(): Promise<boolean>;
 }
 
-function getLockTaskModule(): ExpoLockTask | null {
+function getNativeModule(): ScreenPinningNativeModule | null {
   if (Platform.OS !== 'android') return null;
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const mod = require('@akbaraditamasp/expo-lock-task').default as ExpoLockTask;
-    if (typeof mod?.startLockTask === 'function') return mod;
-    console.warn('[ScreenPinning] @akbaraditamasp/expo-lock-task loaded but API missing');
-    return null;
-  } catch (e) {
-    console.warn('[ScreenPinning] Failed to load @akbaraditamasp/expo-lock-task:', e);
-    return null;
+
+  const mod = NativeModules.ScreenPinning as ScreenPinningNativeModule | undefined;
+
+  if (
+    mod &&
+    typeof mod.startLockTask === 'function' &&
+    typeof mod.stopLockTask === 'function' &&
+    typeof mod.isInLockTaskMode === 'function'
+  ) {
+    return mod;
   }
+
+  if (__DEV__) {
+    console.warn(
+      '[ScreenPinning] Native module not found. ' +
+      'Make sure ScreenPinningPackage is registered in MainApplication.kt ' +
+      'and you ran a fresh `npx expo prebuild`.'
+    );
+  }
+
+  return null;
 }
 
-// Resolve once at module load; on Android this is the linked native module.
-const LockTask = getLockTaskModule();
+const Native = getNativeModule();
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -47,21 +53,22 @@ const LockTask = getLockTaskModule();
 const ScreenPinning = {
   /**
    * Returns true only on Android when the native module is present and linked.
-   * Always false on iOS — screen pinning is an Android-only concept.
+   * Always false on iOS.
    */
   isAvailable(): boolean {
-    return LockTask !== null;
+    return Native !== null;
   },
 
   /**
    * Starts Android Lock Task mode (screen pinning).
-   * Resolves to true if the system accepted the request.
+   * Shows the system screen-pinning confirmation UI.
+   * Resolves to true if the request was accepted.
    */
   async startLockTask(): Promise<boolean> {
-    if (!LockTask) return false;
+    if (!Native) return false;
     try {
-      const result = await LockTask.startLockTask();
-      return result === true;
+      await Native.startLockTask();
+      return true;
     } catch (error) {
       console.error('[ScreenPinning] startLockTask error:', error);
       return false;
@@ -70,13 +77,13 @@ const ScreenPinning = {
 
   /**
    * Stops Android Lock Task mode.
-   * Resolves to true if the system accepted the request.
+   * Resolves to true if the request was accepted.
    */
   async stopLockTask(): Promise<boolean> {
-    if (!LockTask) return false;
+    if (!Native) return false;
     try {
-      const result = await LockTask.stopLockTask();
-      return result === true;
+      await Native.stopLockTask();
+      return true;
     } catch (error) {
       console.error('[ScreenPinning] stopLockTask error:', error);
       return false;
@@ -85,13 +92,11 @@ const ScreenPinning = {
 
   /**
    * Returns true if the device is currently in Lock Task mode.
-   * Maps the package's `isLockTaskMode()` to our `isInLockTaskMode()` name.
    */
   async isInLockTaskMode(): Promise<boolean> {
-    if (!LockTask) return false;
+    if (!Native) return false;
     try {
-      const result = await LockTask.isLockTaskMode();
-      return result === true;
+      return await Native.isInLockTaskMode();
     } catch (error) {
       console.error('[ScreenPinning] isInLockTaskMode error:', error);
       return false;
@@ -99,8 +104,7 @@ const ScreenPinning = {
   },
 
   /**
-   * Deep-links to the Android security settings page where an admin can
-   * enable/disable the device owner policy for lock task whitelisting.
+   * Deep-links to the Android settings page.
    */
   async openSecuritySettings(): Promise<void> {
     try {
@@ -108,15 +112,14 @@ const ScreenPinning = {
     } catch {
       Alert.alert(
         'Open Settings',
-        'Please open Settings → Security → Device Admin Apps to manage screen pinning permissions.',
+        'Please open Settings to manage screen pinning permissions.',
         [{ text: 'OK' }]
       );
     }
   },
 
   /**
-   * Shows a user-friendly alert with manual screen-pinning instructions for
-   * devices where programmatic pinning is unavailable (e.g. non-whitelisted).
+   * Shows a user-friendly alert with manual screen-pinning instructions.
    */
   showManualInstructions(): void {
     Alert.alert(
