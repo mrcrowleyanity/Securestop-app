@@ -1,7 +1,8 @@
 // frontend/plugins/withScreenPinning.js
 // Expo config plugin: injects ScreenPinningModule native code during prebuild
+// Updated for RN 0.81 New Architecture (TurboReactPackage)
 
-const { withMainApplication, withDangerousMod } = require('@expo/config-plugins');
+const { withDangerousMod, withMainApplication } = require('@expo/config-plugins');
 const path = require('path');
 const fs = require('fs');
 
@@ -19,11 +20,17 @@ import com.facebook.react.bridge.Promise
 import com.facebook.react.bridge.ReactApplicationContext
 import com.facebook.react.bridge.ReactContextBaseJavaModule
 import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.module.annotations.ReactModule
 
+@ReactModule(name = ScreenPinningModule.NAME)
 class ScreenPinningModule(private val reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
 
-    override fun getName(): String = "ScreenPinning"
+    companion object {
+        const val NAME = "ScreenPinning"
+    }
+
+    override fun getName(): String = NAME
 
     private fun requireActivity(promise: Promise): Activity? {
         val activity: Activity? = reactContext.currentActivity
@@ -36,26 +43,30 @@ class ScreenPinningModule(private val reactContext: ReactApplicationContext) :
     @ReactMethod
     fun startLockTask(promise: Promise) {
         val activity = requireActivity(promise) ?: return
-        activity.runOnUiThread {
-            try {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 activity.startLockTask()
                 promise.resolve(true)
-            } catch (e: Exception) {
-                promise.reject("START_FAILED", "startLockTask failed: ${'$'}{e.message}", e)
+            } else {
+                promise.reject("UNSUPPORTED", "Screen pinning requires Android 5.0+")
             }
+        } catch (e: Exception) {
+            promise.reject("START_LOCK_TASK_ERROR", e.message ?: "Unknown error")
         }
     }
 
     @ReactMethod
     fun stopLockTask(promise: Promise) {
         val activity = requireActivity(promise) ?: return
-        activity.runOnUiThread {
-            try {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 activity.stopLockTask()
                 promise.resolve(true)
-            } catch (e: Exception) {
-                promise.reject("STOP_FAILED", "stopLockTask failed: ${'$'}{e.message}", e)
+            } else {
+                promise.reject("UNSUPPORTED", "Screen pinning requires Android 5.0+")
             }
+        } catch (e: Exception) {
+            promise.reject("STOP_LOCK_TASK_ERROR", e.message ?: "Unknown error")
         }
     }
 
@@ -63,15 +74,15 @@ class ScreenPinningModule(private val reactContext: ReactApplicationContext) :
     fun isInLockTaskMode(promise: Promise) {
         try {
             val am = reactContext.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            val isLocked = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val inLockTask = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 am.lockTaskModeState != ActivityManager.LOCK_TASK_MODE_NONE
             } else {
                 @Suppress("DEPRECATION")
                 am.isInLockTaskMode
             }
-            promise.resolve(isLocked)
+            promise.resolve(inLockTask)
         } catch (e: Exception) {
-            promise.reject("CHECK_FAILED", "isInLockTaskMode failed: ${'$'}{e.message}", e)
+            promise.reject("LOCK_TASK_MODE_ERROR", e.message ?: "Unknown error")
         }
     }
 }
@@ -79,97 +90,102 @@ class ScreenPinningModule(private val reactContext: ReactApplicationContext) :
 
 const SCREEN_PINNING_PACKAGE_KT = `package com.securestop.app
 
-import com.facebook.react.ReactPackage
+import com.facebook.react.TurboReactPackage
 import com.facebook.react.bridge.NativeModule
 import com.facebook.react.bridge.ReactApplicationContext
-import com.facebook.react.uimanager.ViewManager
+import com.facebook.react.module.model.ReactModuleInfo
+import com.facebook.react.module.model.ReactModuleInfoProvider
 
-class ScreenPinningPackage : ReactPackage {
-    override fun createNativeModules(reactContext: ReactApplicationContext): List<NativeModule> =
-        listOf(ScreenPinningModule(reactContext))
+class ScreenPinningPackage : TurboReactPackage() {
 
-    override fun createViewManagers(reactContext: ReactApplicationContext): List<ViewManager<*, *>> =
-        emptyList()
+    override fun getModule(name: String, context: ReactApplicationContext): NativeModule? =
+        if (name == ScreenPinningModule.NAME) ScreenPinningModule(context) else null
+
+    override fun getReactModuleInfoProvider() = ReactModuleInfoProvider {
+        mapOf(
+            ScreenPinningModule.NAME to ReactModuleInfo(
+                ScreenPinningModule.NAME,
+                ScreenPinningModule.NAME,
+                false,  // canOverrideExistingModule
+                false,  // needsEagerInit
+                false,  // isCxxModule
+                true    // isTurboModule
+            )
+        )
+    }
 }
 `;
 
 // ---------------------------------------------------------------------------
-// Mod 1: Write Kotlin source files into android/ during prebuild
+// Config plugin: write Kotlin files
 // ---------------------------------------------------------------------------
 
-function withScreenPinningKotlinFiles(config) {
-  return withDangerousMod(config, [
-    'android',
-    (cfg) => {
-      const projectRoot = cfg.modRequest.projectRoot;
-      const sourceDir = path.join(
-        projectRoot,
-        'android', 'app', 'src', 'main', 'java',
-        'com', 'securestop', 'app'
-      );
-      fs.mkdirSync(sourceDir, { recursive: true });
-      fs.writeFileSync(
-        path.join(sourceDir, 'ScreenPinningModule.kt'),
-        SCREEN_PINNING_MODULE_KT,
-        'utf8'
-      );
-      fs.writeFileSync(
-        path.join(sourceDir, 'ScreenPinningPackage.kt'),
-        SCREEN_PINNING_PACKAGE_KT,
-        'utf8'
-      );
-      return cfg;
-    },
-  ]);
+function withScreenPinningFiles(config) {
+    return withDangerousMod(config, [
+        'android',
+        (config) => {
+            const androidRoot = path.join(config.modRequest.projectRoot, 'android');
+            const javaDir = path.join(
+                androidRoot,
+                'app', 'src', 'main', 'java', 'com', 'securestop', 'app'
+            );
+
+            fs.mkdirSync(javaDir, { recursive: true });
+
+            fs.writeFileSync(
+                path.join(javaDir, 'ScreenPinningModule.kt'),
+                SCREEN_PINNING_MODULE_KT
+            );
+            fs.writeFileSync(
+                path.join(javaDir, 'ScreenPinningPackage.kt'),
+                SCREEN_PINNING_PACKAGE_KT
+            );
+
+            return config;
+        },
+    ]);
 }
 
 // ---------------------------------------------------------------------------
-// Mod 2: Register the package in MainApplication.kt
+// Config plugin: register package in MainApplication.kt
 // ---------------------------------------------------------------------------
-
-const IMPORT_LINE = 'import com.securestop.app.ScreenPinningPackage';
-const APPLY_ANCHOR = 'PackageList(application).packages.apply {';
-const PACKAGE_LINE = '      add(ScreenPinningPackage())';
 
 function withScreenPinningMainApplication(config) {
-  return withMainApplication(config, (cfg) => {
-    let contents = cfg.modResults.contents;
+    return withMainApplication(config, (config) => {
+        const src = config.modResults.contents;
 
-    // Add import if not present
-    if (!contents.includes(IMPORT_LINE)) {
-      const lastImportIdx = contents.lastIndexOf('\nimport ');
-      if (lastImportIdx !== -1) {
-        const endOfLine = contents.indexOf('\n', lastImportIdx + 1);
-        contents =
-          contents.slice(0, endOfLine + 1) +
-          IMPORT_LINE + '\n' +
-          contents.slice(endOfLine + 1);
-      }
-    }
+        const importLine = 'import com.securestop.app.ScreenPinningPackage';
+        const packageLine = '            packages.add(ScreenPinningPackage())';
 
-    // Add package registration inside the apply block if not already present
-    if (!contents.includes('ScreenPinningPackage()') && contents.includes(APPLY_ANCHOR)) {
-      contents = contents.replace(
-        APPLY_ANCHOR,
-        APPLY_ANCHOR + '\n' + PACKAGE_LINE
-      );
-    } else if (!contents.includes('ScreenPinningPackage()')) {
-      console.warn(
-        '[withScreenPinning] Could not find anchor in MainApplication.kt: "' + APPLY_ANCHOR + '"'
-      );
-    }
+        let updated = src;
 
-    cfg.modResults.contents = contents;
-    return cfg;
-  });
+        // Add import if not already present
+        if (!updated.includes(importLine)) {
+            updated = updated.replace(
+                /^(package com\.securestop\.app)/m,
+                `$1\n\n${importLine}`
+            );
+        }
+
+        // Add package registration if not already present
+        if (!updated.includes(packageLine)) {
+            updated = updated.replace(
+                /(override fun getPackages\(\)[\s\S]*?val packages = PackageList\(this\)\.packages)/,
+                `$1\n${packageLine}`
+            );
+        }
+
+        config.modResults.contents = updated;
+        return config;
+    });
 }
 
 // ---------------------------------------------------------------------------
-// Combined plugin export
+// Compose
 // ---------------------------------------------------------------------------
 
 module.exports = function withScreenPinning(config) {
-  config = withScreenPinningKotlinFiles(config);
-  config = withScreenPinningMainApplication(config);
-  return config;
+    config = withScreenPinningFiles(config);
+    config = withScreenPinningMainApplication(config);
+    return config;
 };
