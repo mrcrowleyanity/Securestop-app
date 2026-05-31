@@ -89,10 +89,6 @@ const initSecureMode    = async () => {
       if (Platform.OS === 'android') {
         // Try to start native screen pinning if available
         if (ScreenPinning.isAvailable()) {
-          const pinningStarted = await ScreenPinning.startLockTask();
-          if (pinningStarted) {
-            setIsLockTaskActive(true);
-            if (ScreenPinning.isAvailable()) {
   const pinningEnabled = await ScreenPinning.isScreenPinningEnabled();
   if (!pinningEnabled && !hasConfirmedPinning) {
     setShowPinningRequired(true);
@@ -113,9 +109,11 @@ const initSecureMode    = async () => {
       setTimeout(() => clearInterval(poll), 15000);
     }
   }
-            }
-        setPinningConfirmed(true);
-      }
+} else if (!hasConfirmedPinning) {
+  setShowPinningRequired(true);
+} else {
+  setPinningConfirmed(true);
+        }
       
             // Mark secure mode as active in SecureStore (checked on app restart in index.tsx)
       await SecureStore.setItemAsync('secure_mode_active', 'true');
