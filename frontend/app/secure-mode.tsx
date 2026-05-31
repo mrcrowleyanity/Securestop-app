@@ -92,22 +92,28 @@ const initSecureMode    = async () => {
           const pinningStarted = await ScreenPinning.startLockTask();
           if (pinningStarted) {
             setIsLockTaskActive(true);
-            setPinningConfirmed(true);
-            console.log('Native screen pinning activated');
-          } else if (!hasConfirmedPinning) {
-            // Native pinning failed, show manual setup instructions
-            setShowPinningRequired(true);
-          } else {
-            setPinningConfirmed(true);
-          }
-        } else if (!hasConfirmedPinning) {
-          // Running in Expo Go - show manual setup instructions
-          console.log('Running in Expo Go - native screen pinning not available');
-          setShowPinningRequired(true);
-        } else {
+            if (ScreenPinning.isAvailable()) {
+  const pinningEnabled = await ScreenPinning.isScreenPinningEnabled();
+  if (!pinningEnabled && !hasConfirmedPinning) {
+    setShowPinningRequired(true);
+  } else {
+    const pinningStarted = await ScreenPinning.startLockTask();
+    if (pinningStarted) {
+      setIsLockTaskActive(true);
+      setPinningConfirmed(true);
+    } else {
+      const poll = setInterval(async () => {
+        const state = await ScreenPinning.getLockTaskModeState();
+        if (state === 2) {
+          setIsLockTaskActive(true);
           setPinningConfirmed(true);
+          clearInterval(poll);
         }
-      } else {
+      }, 1000);
+      setTimeout(() => clearInterval(poll), 15000);
+    }
+  }
+            }
         setPinningConfirmed(true);
       }
       
