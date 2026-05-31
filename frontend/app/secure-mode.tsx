@@ -112,8 +112,7 @@ const initSecureMode    = async () => {
 } else if (!hasConfirmedPinning) {
   setShowPinningRequired(true);
 } else {
-  setPinningConfirmed(true);
-        }
+  setPinningConfirmed(true)
       
             // Mark secure mode as active in SecureStore (checked on app restart in index.tsx)
       await SecureStore.setItemAsync('secure_mode_active', 'true');
