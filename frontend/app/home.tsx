@@ -52,13 +52,7 @@ export default function Home() {
     
     if (Platform.OS === 'android') {
       const result = await enterScreenPinning();
-      if (result.success) {
         router.push('/officer-login');
-      } else {
-        Alert.alert('Screen Pinning Required', result.message || 'Please enable screen pinning to continue.');
-      }
-    } else {
-      router.push('/officer-login');
     }
   };
 
