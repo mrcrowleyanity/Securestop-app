@@ -91,7 +91,7 @@ const initSecureMode    = async () => {
         if (ScreenPinning.isAvailable()) {
   const pinningEnabled = await ScreenPinning.isScreenPinningEnabled();
   if (!pinningEnabled && !hasConfirmedPinning) {
-    setShowPinningRequired(true);
+    setPinningConfirmed(true); // Non-blocking: enter secure mode regardless
   } else {
     const pinningStarted = await ScreenPinning.startLockTask();
     if (pinningStarted) {
@@ -110,7 +110,7 @@ const initSecureMode    = async () => {
     }
   }
 } else if (!hasConfirmedPinning) {
-  setShowPinningRequired(true);
+  setPinningConfirmed(true); // Non-blocking: enter secure mode regardless
 } else {
     setPinningConfirmed(true);
   }
