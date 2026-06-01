@@ -228,6 +228,7 @@ console.error('Error loading data:', error);
           await ScreenPinning.stopLockTask();
           setIsLockTaskActive(false);
           console.log('Screen pinning stopped after PIN verification');
+Alert.alert('One More Step', 'Please unpin the app: tap the Recent Apps button, then tap Unpin.');
         }
         
               // Clear secure mode active flag from SecureStore
