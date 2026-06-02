@@ -40,12 +40,9 @@ export default function AccessHistory() {
 
   const loadLogs = async () => {
     try {
-      // user_id is stored in SecureStore (not AsyncStorage)
-      const userId = await SecureStore.getItemAsync('user_id');
-      if (userId) {
-        const response = await axios.get(`${API_URL}/api/access-log/${userId}`);
-        setLogs(response.data);
-      }
+      const existingLogs = await AsyncStorage.getItem('access_logs');
+      const logs = existingLogs ? JSON.parse(existingLogs) : [];
+      setLogs(logs);
     } catch (error) {
       console.error('Error loading logs:', error);
     } finally {
@@ -75,9 +72,14 @@ export default function AccessHistory() {
     setIsExporting(true);
     try {
       // user_id is stored in SecureStore
-      const userId = await SecureStore.getItemAsync('user_id');
-      const response = await axios.get(`${API_URL}/api/access-log/${userId}/export`);
-      const data = response.data;
+      const existingLogs = await AsyncStorage.getItem('access_logs');
+      const logs = existingLogs ? JSON.parse(existingLogs) : [];
+      const data = {
+        user_email: 'Local User',
+        export_date: new Date().toISOString(),
+        total_accesses: logs.length,
+        logs: logs,
+      };
 
       const html = `<!DOCTYPE html>
 <html>
