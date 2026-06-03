@@ -262,18 +262,25 @@ console.error('Error during PIN verification:', error);
       const location = locationStr ? JSON.parse(locationStr) : null;
 
       if (userId && officerName && badgeNumber) {
-        await axios.post(`${API_URL}/api/access-log`, {
+        const newLog = {
+          id: Date.now().toString(),
           user_id: userId,
           officer_name: officerName,
           badge_number: badgeNumber,
-          latitude: location?.latitude,
-          longitude: location?.longitude,
+          timestamp: new Date().toISOString(),
+          latitude: location?.latitude || null,
+          longitude: location?.longitude || null,
           documents_viewed: viewedDocs,
-        });
-        console.log('Access logged successfully');
+        };
+
+        const existingLogs = await AsyncStorage.getItem('access_logs');
+        const logs = existingLogs ? JSON.parse(existingLogs) : [];
+        logs.unshift(newLog);
+        await AsyncStorage.setItem('access_logs', JSON.stringify(logs));
+        console.log('Access logged locally successfully');
       }
     } catch (error) {
-      console.error('Failed to log access:', error);
+      console.error('Failed to log access locally:', error);
     }
   };
 

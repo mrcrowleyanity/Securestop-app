@@ -14,10 +14,6 @@ import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
-
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-
 export default function Settings() {
   const [userEmail, setUserEmail] = useState('');
   const [showChangePinModal, setShowChangePinModal] = useState(false);
@@ -52,24 +48,15 @@ export default function Settings() {
 
     setIsLoading(true);
     try {
-      // user_id is stored in SecureStore (not AsyncStorage)
-      const userId = await SecureStore.getItemAsync('user_id');
-
-      // First verify current PIN
-      const verifyResponse = await axios.post(`${API_URL}/api/users/verify-pin`, {
-        user_id: userId,
-        pin: currentPin,
-      });
-
-      if (!verifyResponse.data.success) {
+      // Verify current PIN locally
+      const storedPin = await SecureStore.getItemAsync('user_pin');
+      if (!storedPin || storedPin !== currentPin) {
         Alert.alert('Error', 'Current PIN is incorrect');
+        setIsLoading(false);
         return;
       }
 
-      // Update PIN on server
-      await axios.put(`${API_URL}/api/users/${userId}/pin?old_pin=${currentPin}&new_pin=${newPin}`);
-
-      // Also update the locally-stored PIN in SecureStore
+      // Update PIN locally
       await SecureStore.setItemAsync('user_pin', newPin);
 
       Alert.alert('Success', 'PIN updated successfully');
@@ -79,7 +66,7 @@ export default function Settings() {
       setConfirmPin('');
     } catch (error: any) {
       console.error('Change PIN error:', error);
-      Alert.alert('Error', error.response?.data?.detail || 'Failed to update PIN');
+      Alert.alert('Error', 'Failed to update PIN');
     } finally {
       setIsLoading(false);
     }
@@ -186,18 +173,43 @@ export default function Settings() {
         </View>
       </View>
 
-      {/* Premium Section - Placeholder */}
+      {/* Premium Section */}
       <Text style={styles.sectionTitle}>Premium</Text>
       <View style={styles.section}>
         <View style={styles.premiumBanner}>
           <View style={styles.premiumContent}>
             <Ionicons name="star" size={24} color="#FFD700" />
             <View style={styles.premiumText}>
-              <Text style={styles.premiumTitle}>Upgrade to Premium</Text>
-              <Text style={styles.premiumSubtitle}>Background voice recording & more</Text>
+              <Text style={styles.premiumTitle}>Secure Stop Protect Pro</Text>
+              <Text style={styles.premiumSubtitle}>$4.99/month</Text>
             </View>
           </View>
-          <Text style={styles.comingSoon}>Coming Soon</Text>
+          <View style={styles.premiumFeatures}>
+            <View style={styles.premiumFeatureRow}>
+              <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+              <Text style={styles.premiumFeatureText}>Auto audio recording of encounters</Text>
+            </View>
+            <View style={styles.premiumFeatureRow}>
+              <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+              <Text style={styles.premiumFeatureText}>Front camera officer photo capture</Text>
+            </View>
+            <View style={styles.premiumFeatureRow}>
+              <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+              <Text style={styles.premiumFeatureText}>GPS location logging</Text>
+            </View>
+            <View style={styles.premiumFeatureRow}>
+              <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+              <Text style={styles.premiumFeatureText}>One-tap attorney & emergency contact</Text>
+            </View>
+            <View style={styles.premiumFeatureRow}>
+              <Ionicons name="checkmark-circle" size={16} color="#34C759" />
+              <Text style={styles.premiumFeatureText}>Badge rate limiting & flagging</Text>
+            </View>
+          </View>
+          <TouchableOpacity style={styles.upgradeButton} activeOpacity={0.8}>
+            <Ionicons name="star" size={18} color="#0f0f1a" />
+            <Text style={styles.upgradeButtonText}>Upgrade to Pro — Coming Soon</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -362,4 +374,13 @@ const styles = StyleSheet.create({
   },
   saveButtonDisabled: { opacity: 0.6 },
   saveButtonText: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  premiumFeatures: { marginTop: 12 },
+  premiumFeatureRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+  premiumFeatureText: { color: '#ccc', fontSize: 13, flex: 1 },
+  upgradeButton: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#FFD700', borderRadius: 12, paddingVertical: 14,
+    marginTop: 16, gap: 8,
+  },
+  upgradeButtonText: { color: '#0f0f1a', fontSize: 15, fontWeight: '700' },
 });
