@@ -81,6 +81,12 @@ export default function AccessHistory() {
         logs: logs,
       };
 
+      // Generate integrity verification section
+      const verifiedLogs = logs.map((log: any) => ({
+        ...log,
+        verified: log.integrity_hash ? 'VERIFIED' : 'UNVERIFIED',
+      }));
+
       const html = `<!DOCTYPE html>
 <html>
 <head>
@@ -88,6 +94,10 @@ export default function AccessHistory() {
 <title>Secure Stop - Access History</title>
 <style>
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 40px; color: #333; }
+  .verified-badge { display: inline-block; background: #d4edda; color: #155724; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+  .unverified-badge { display: inline-block; background: #f8d7da; color: #721c24; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+  .hash-display { font-family: monospace; font-size: 10px; color: #666; word-break: break-all; }
+  .certificate { background: #f8f9fa; border: 2px solid #007AFF; border-radius: 8px; padding: 16px; margin-bottom: 30px; }
   .header { text-align: center; border-bottom: 2px solid #007AFF; padding-bottom: 20px; margin-bottom: 30px; }
   .header h1 { color: #007AFF; margin: 0; font-size: 28px; }
   .meta { background: #f5f5f5; padding: 15px; border-radius: 8px; margin-bottom: 30px; }

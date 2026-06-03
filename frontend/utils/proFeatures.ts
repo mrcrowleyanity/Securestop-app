@@ -121,3 +121,48 @@ export async function isRecordingLocked(interactionId: string): Promise<boolean>
     return false;
   }
 }
+
+// ─── FOUNDING MEMBER TRACKING ─────────────────────────────────────────────────
+const FOUNDING_MEMBER_KEY = 'founding_member_count';
+const FOUNDING_MEMBER_MAX = 500;
+const FOUNDING_MEMBER_PRICE = 4.99;
+const STANDARD_PRICE = 7.99;
+
+export async function getFoundingMemberCount(): Promise<number> {
+  try {
+    const raw = await AsyncStorage.getItem(FOUNDING_MEMBER_KEY);
+    return raw ? parseInt(raw, 10) : 0;
+  } catch { return 0; }
+}
+
+export async function incrementFoundingMemberCount(): Promise<number> {
+  try {
+    const current = await getFoundingMemberCount();
+    const next = current + 1;
+    await AsyncStorage.setItem(FOUNDING_MEMBER_KEY, next.toString());
+    return next;
+  } catch { return 0; }
+}
+
+export async function getFoundingMemberSpotsRemaining(): Promise<number> {
+  const count = await getFoundingMemberCount();
+  return Math.max(0, FOUNDING_MEMBER_MAX - count);
+}
+
+export async function isFoundingMemberAvailable(): Promise<boolean> {
+  const spots = await getFoundingMemberSpotsRemaining();
+  return spots > 0;
+}
+
+export async function setFoundingMember(value: boolean): Promise<void> {
+  await SecureStore.setItemAsync('is_founding_member', value ? 'true' : 'false');
+}
+
+export async function isFoundingMember(): Promise<boolean> {
+  try {
+    const val = await SecureStore.getItemAsync('is_founding_member');
+    return val === 'true';
+  } catch { return false; }
+}
+
+export { FOUNDING_MEMBER_MAX, FOUNDING_MEMBER_PRICE, STANDARD_PRICE };

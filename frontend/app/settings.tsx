@@ -14,6 +14,13 @@ import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  getEmergencyContact, saveEmergencyContact,
+  getAttorneyContact, saveAttorneyContact,
+  deleteEmergencyContact, deleteAttorneyContact,
+  type ContactInfo
+} from '../utils/emergencyContact';
+import { isFoundingMember, getFoundingMemberSpotsRemaining, FOUNDING_MEMBER_MAX } from '../utils/proFeatures';
 export default function Settings() {
   const [userEmail, setUserEmail] = useState('');
   const [showChangePinModal, setShowChangePinModal] = useState(false);
@@ -213,6 +220,70 @@ export default function Settings() {
         </View>
       </View>
 
+      {/* Emergency Contacts Section */}
+      <Text style={styles.sectionTitle}>Emergency Contacts (Pro)</Text>
+      <View style={styles.section}>
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => {
+            setContactName(emergencyContact?.name || '');
+            setContactPhone(emergencyContact?.phone || '');
+            setShowEmergencyModal(true);
+          }}
+        >
+          <View style={styles.settingIcon}>
+            <Ionicons name="alert-circle" size={20} color="#FF6B00" />
+          </View>
+          <View style={styles.settingContent}>
+            <Text style={styles.settingLabel}>Emergency Contact</Text>
+            <Text style={styles.settingSubtext}>
+              {emergencyContact ? `${emergencyContact.name} — ${emergencyContact.phone}` : 'Not configured'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#666" />
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.settingItem}
+          onPress={() => {
+            setContactName(attorneyContact?.name || '');
+            setContactPhone(attorneyContact?.phone || '');
+            setShowAttorneyModal(true);
+          }}
+        >
+          <View style={styles.settingIcon}>
+            <Ionicons name="briefcase" size={20} color="#2e6da4" />
+          </View>
+          <View style={styles.settingContent}>
+            <Text style={styles.settingLabel}>Attorney Contact</Text>
+            <Text style={styles.settingSubtext}>
+              {attorneyContact ? `${attorneyContact.name} — ${attorneyContact.phone}` : 'Not configured'}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color="#666" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Founding Member Status */}
+      {foundingMember && (
+        <>
+          <Text style={styles.sectionTitle}>Membership</Text>
+          <View style={styles.section}>
+            <View style={styles.settingItem}>
+              <View style={styles.settingIcon}>
+                <Ionicons name="star" size={20} color="#FFD700" />
+              </View>
+              <View style={styles.settingContent}>
+                <Text style={styles.settingLabel}>Founding Member</Text>
+                <Text style={styles.settingSubtext}>$4.99/month — Price locked forever</Text>
+              </View>
+              <View style={styles.foundingBadge}>
+                <Text style={styles.foundingBadgeText}>#{FOUNDING_MEMBER_MAX - spotsRemaining}</Text>
+              </View>
+            </View>
+          </View>
+        </>
+      )}
+
       {/* Danger Zone */}
       <Text style={styles.sectionTitle}>Account Actions</Text>
       <View style={styles.section}>
@@ -229,6 +300,134 @@ export default function Settings() {
           <Text style={[styles.settingLabel, { color: '#FF3B30' }]}>Delete Account</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Emergency Contact Modal */}
+      <Modal visible={showEmergencyModal} animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowEmergencyModal(false)}>
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Emergency Contact</Text>
+            <View style={{ width: 60 }} />
+          </View>
+          <View style={styles.modalContent}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Contact Name</Text>
+              <TextInput
+                style={styles.input}
+                value={contactName}
+                onChangeText={setContactName}
+                placeholder="Full name"
+                placeholderTextColor="#666"
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                value={contactPhone}
+                onChangeText={setContactPhone}
+                placeholder="Phone number"
+                placeholderTextColor="#666"
+                keyboardType="phone-pad"
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={async () => {
+                if (!contactName || !contactPhone) {
+                  Alert.alert('Error', 'Please fill in all fields');
+                  return;
+                }
+                await saveEmergencyContact({ name: contactName, phone: contactPhone });
+                setEmergencyContactState({ name: contactName, phone: contactPhone });
+                setShowEmergencyModal(false);
+                Alert.alert('Saved', 'Emergency contact saved successfully');
+              }}
+            >
+              <Text style={styles.saveButtonText}>Save Contact</Text>
+            </TouchableOpacity>
+            {emergencyContact && (
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: '#FF3B30', marginTop: 12 }]}
+                onPress={async () => {
+                  await deleteEmergencyContact();
+                  setEmergencyContactState(null);
+                  setShowEmergencyModal(false);
+                  Alert.alert('Removed', 'Emergency contact removed');
+                }}
+              >
+                <Text style={styles.saveButtonText}>Remove Contact</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Attorney Contact Modal */}
+      <Modal visible={showAttorneyModal} animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowAttorneyModal(false)}>
+              <Text style={styles.modalCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Attorney Contact</Text>
+            <View style={{ width: 60 }} />
+          </View>
+          <View style={styles.modalContent}>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Attorney Name</Text>
+              <TextInput
+                style={styles.input}
+                value={contactName}
+                onChangeText={setContactName}
+                placeholder="Attorney full name"
+                placeholderTextColor="#666"
+              />
+            </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.inputLabel}>Phone Number</Text>
+              <TextInput
+                style={styles.input}
+                value={contactPhone}
+                onChangeText={setContactPhone}
+                placeholder="Attorney phone number"
+                placeholderTextColor="#666"
+                keyboardType="phone-pad"
+              />
+            </View>
+            <TouchableOpacity
+              style={styles.saveButton}
+              onPress={async () => {
+                if (!contactName || !contactPhone) {
+                  Alert.alert('Error', 'Please fill in all fields');
+                  return;
+                }
+                await saveAttorneyContact({ name: contactName, phone: contactPhone });
+                setAttorneyContactState({ name: contactName, phone: contactPhone });
+                setShowAttorneyModal(false);
+                Alert.alert('Saved', 'Attorney contact saved successfully');
+              }}
+            >
+              <Text style={styles.saveButtonText}>Save Attorney</Text>
+            </TouchableOpacity>
+            {attorneyContact && (
+              <TouchableOpacity
+                style={[styles.saveButton, { backgroundColor: '#FF3B30', marginTop: 12 }]}
+                onPress={async () => {
+                  await deleteAttorneyContact();
+                  setAttorneyContactState(null);
+                  setShowAttorneyModal(false);
+                  Alert.alert('Removed', 'Attorney contact removed');
+                }}
+              >
+                <Text style={styles.saveButtonText}>Remove Attorney</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Change PIN Modal */}
       <Modal visible={showChangePinModal} animationType="slide">

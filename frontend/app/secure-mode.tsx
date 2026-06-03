@@ -23,6 +23,9 @@ import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { loadDocuments } from '../utils/secureDocumentStorage';
 import ScreenPinning from '../modules/screen-pinning';
+import { sendEmergencyAlert, callAttorney, hasEmergencyContact, hasAttorneyContact } from '../utils/emergencyContact';
+import { isPremium } from '../utils/proFeatures';
+import { Audio } from 'expo-av';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width } = Dimensions.get('window');
@@ -49,6 +52,11 @@ export default function SecureMode() {
   const [showPinningRequired, setShowPinningRequired] = useState(false);
         const [, setPinningConfirmed] = useState(false);
   const [isLockTaskActive, setIsLockTaskActive] = useState(false);
+  const [showEmergencyOptions, setShowEmergencyOptions] = useState(false);
+  const [hasEmergency, setHasEmergency] = useState(false);
+  const [hasAttorney, setHasAttorney] = useState(false);
+  const [isProMode, setIsProMode] = useState(false);
+  const [activeRecording, setActiveRecording] = useState<Audio.Recording | null>(null);
 
       
 useEffect(() => {
@@ -930,6 +938,37 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 59, 48, 0.1)',
     paddingVertical: 14,
     gap: 8,
+  },
+  emergencyContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
+  emergencyContactBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF6B00',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 6,
+  },
+  attorneyBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2e6da4',
+    paddingVertical: 12,
+    borderRadius: 10,
+    gap: 6,
+  },
+  emergencyContactBtnText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
   bottomBarText: {
     color: '#FF3B30',
