@@ -9,13 +9,10 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
-import axios from 'axios';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
 interface AccessLog {
   id: string;

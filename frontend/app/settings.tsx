@@ -237,7 +237,7 @@ export default function Settings() {
           <View style={styles.settingContent}>
             <Text style={styles.settingLabel}>Emergency Contact</Text>
             <Text style={styles.settingSubtext}>
-              {emergencyContact ? `${emergencyContact.name} — ${emergencyContact.phone}` : 'Not configured'}
+              {emergencyContact ? (emergencyContact.name + ' — ' + emergencyContact.phone) : 'Not configured'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#666" />
@@ -256,7 +256,7 @@ export default function Settings() {
           <View style={styles.settingContent}>
             <Text style={styles.settingLabel}>Attorney Contact</Text>
             <Text style={styles.settingSubtext}>
-              {attorneyContact ? `${attorneyContact.name} — ${attorneyContact.phone}` : 'Not configured'}
+              {attorneyContact ? (attorneyContact.name + ' — ' + attorneyContact.phone) : 'Not configured'}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#666" />
