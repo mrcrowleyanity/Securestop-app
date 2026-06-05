@@ -89,7 +89,6 @@ export default function Home() {
               <Text style={styles.stepText}>• Find Secure Stop card and tap the app icon at the top</Text>
               <Text style={styles.stepText}>• Tap "Pin" to lock your phone to this app</Text>
               <Text style={styles.stepText}>• Then hand your device to the officer</Text>
-              <Text style={styles.stepText}>• The officer will enter their credentials
             <Text style={styles.stepText}>• The officer will enter their credentials</Text>
             <Text style={styles.stepText}>• Your private data remains encrypted</Text>
             <Text style={styles.stepText}>• You can exit secure mode anytime after unpinning</Text>

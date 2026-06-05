@@ -20,14 +20,11 @@ import { router, useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
-import axios from 'axios';
 import { loadDocuments } from '../utils/secureDocumentStorage';
 import ScreenPinning from '../modules/screen-pinning';
 import { sendEmergencyAlert, callAttorney, hasEmergencyContact, hasAttorneyContact } from '../utils/emergencyContact';
-import { isPremium } from '../utils/proFeatures';
 import { Audio } from 'expo-av';
 
-const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || '';
 const { width } = Dimensions.get('window');
 
 interface Document {
@@ -52,7 +49,6 @@ export default function SecureMode() {
   const [showPinningRequired, setShowPinningRequired] = useState(false);
         const [, setPinningConfirmed] = useState(false);
   const [isLockTaskActive, setIsLockTaskActive] = useState(false);
-  const [showEmergencyOptions, setShowEmergencyOptions] = useState(false);
   const [hasEmergency, setHasEmergency] = useState(false);
   const [hasAttorney, setHasAttorney] = useState(false);
   const [isProMode, setIsProMode] = useState(false);

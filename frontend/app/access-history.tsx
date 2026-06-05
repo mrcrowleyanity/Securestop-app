@@ -79,10 +79,6 @@ export default function AccessHistory() {
       };
 
       // Generate integrity verification section
-      const verifiedLogs = logs.map((log: any) => ({
-        ...log,
-        verified: log.integrity_hash ? 'VERIFIED' : 'UNVERIFIED',
-      }));
 
       const html = `<!DOCTYPE html>
 <html>
