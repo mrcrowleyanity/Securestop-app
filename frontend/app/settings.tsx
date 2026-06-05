@@ -601,4 +601,6 @@ const styles = StyleSheet.create({
     marginTop: 16, gap: 8,
   },
   upgradeButtonText: { color: '#0f0f1a', fontSize: 15, fontWeight: '700' },
+  foundingBadge: { backgroundColor: '#FFD700', borderRadius: 12, paddingHorizontal: 8, paddingVertical: 4 },
+  foundingBadgeText: { color: '#0f0f1a', fontSize: 12, fontWeight: '700' },
 });

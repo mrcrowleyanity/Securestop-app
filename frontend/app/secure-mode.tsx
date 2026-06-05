@@ -50,8 +50,6 @@ export default function SecureMode() {
   const [showPinningRequired, setShowPinningRequired] = useState(false);
         const [, setPinningConfirmed] = useState(false);
   const [isLockTaskActive, setIsLockTaskActive] = useState(false);
-  const [isProMode, setIsProMode] = useState(false);
-  const [activeRecording, setActiveRecording] = useState<Audio.Recording | null>(null);
 
       
 useEffect(() => {
