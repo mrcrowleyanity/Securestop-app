@@ -147,6 +147,20 @@ export default function OfficerLogin() {
       console.log('- Badge:', badgeNumber.trim());
       console.log('- Location:', location ? 'Yes' : 'No');
 
+      // Save access log entry
+      const logEntry = {
+        id: Date.now().toString(),
+        timestamp: new Date().toISOString(),
+        officer_name: officerName.trim(),
+        badge_number: badgeNumber.trim(),
+        latitude: location?.latitude || null,
+        longitude: location?.longitude || null,
+        integrity_hash: '',
+      };
+      const existingLogs = await AsyncStorage.getItem('access_logs');
+      const logs = existingLogs ? JSON.parse(existingLogs) : [];
+      logs.unshift(logEntry);
+      await AsyncStorage.setItem('access_logs', JSON.stringify(logs));
       // Navigate to secure mode
       router.replace('/secure-mode');
     } catch (error) {
