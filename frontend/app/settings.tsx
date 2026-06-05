@@ -28,11 +28,30 @@ export default function Settings() {
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [emergencyContact, setEmergencyContactState] = useState<ContactInfo | null>(null);
+  const [attorneyContact, setAttorneyContactState] = useState<ContactInfo | null>(null);
+  const [contactName, setContactName] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [showAttorneyModal, setShowAttorneyModal] = useState(false);
+  const [foundingMember, setFoundingMember] = useState(false);
+  const [spotsRemaining, setSpotsRemaining] = useState(0);
 
   useEffect(() => {
     loadUserData();
+    loadContacts();
   }, []);
 
+  const loadContacts = async () => {
+    const ec = await getEmergencyContact();
+    const ac = await getAttorneyContact();
+    const fm = await isFoundingMember();
+    const spots = await getFoundingMemberSpotsRemaining();
+    setEmergencyContactState(ec);
+    setAttorneyContactState(ac);
+    setFoundingMember(fm);
+    setSpotsRemaining(spots);
+  };
   const loadUserData = async () => {
     // user_email is stored in SecureStore by setup.tsx
     const email = await SecureStore.getItemAsync('user_email');

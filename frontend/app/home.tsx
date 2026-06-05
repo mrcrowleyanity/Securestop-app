@@ -8,7 +8,7 @@ import {
   Platform,
   Modal,
   Linking,
-  Alert,
+
 } from 'react-native';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -51,7 +51,7 @@ export default function Home() {
     setShowInstructionsModal(false);
     
     if (Platform.OS === 'android') {
-      const result = await enterScreenPinning();
+      await enterScreenPinning();
         router.push('/officer-login');
     }
   };

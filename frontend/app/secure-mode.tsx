@@ -11,6 +11,7 @@ import {
   Dimensions,
   ActivityIndicator,
   StatusBar,
+  Alert,
   Modal,
   TextInput,
   Linking,
@@ -22,7 +23,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Ionicons } from '@expo/vector-icons';
 import { loadDocuments } from '../utils/secureDocumentStorage';
 import ScreenPinning from '../modules/screen-pinning';
-import { sendEmergencyAlert, callAttorney, hasEmergencyContact, hasAttorneyContact } from '../utils/emergencyContact';
+
 import { Audio } from 'expo-av';
 
 const { width } = Dimensions.get('window');
@@ -49,8 +50,6 @@ export default function SecureMode() {
   const [showPinningRequired, setShowPinningRequired] = useState(false);
         const [, setPinningConfirmed] = useState(false);
   const [isLockTaskActive, setIsLockTaskActive] = useState(false);
-  const [hasEmergency, setHasEmergency] = useState(false);
-  const [hasAttorney, setHasAttorney] = useState(false);
   const [isProMode, setIsProMode] = useState(false);
   const [activeRecording, setActiveRecording] = useState<Audio.Recording | null>(null);
 
