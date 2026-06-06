@@ -58,14 +58,6 @@ const PERMISSION_ITEMS: PermissionItem[] = [
     isRequired: false,
   },
   {
-    key: 'contacts',
-    title: 'Contacts Access',
-    description: 'Quick access to emergency contacts and attorney',
-    icon: 'people',
-    isPremium: true,
-    isRequired: false,
-  },
-  {
     key: 'screenPinning',
     title: 'Screen Pinning',
     description: 'Lock your phone to this app during encounters',
@@ -114,9 +106,6 @@ export default function PermissionsSetup() {
         break;
       case 'storage':
         await Permissions.requestStoragePermission();
-        break;
-      case 'contacts':
-        await Permissions.requestContactsPermission();
         break;
       case 'screenPinning':
         setShowPinningGuide(true);
