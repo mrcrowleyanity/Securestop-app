@@ -9,7 +9,6 @@
  * Premium Features:
  * - Camera (cop photos, document scanning)
  * - Microphone (audio recording)
- * - Contacts (emergency contacts)
  * - SMS/Phone (attorney/emergency calls)
  */
 
@@ -17,7 +16,6 @@ import { Platform, Linking } from 'react-native';
 import * as Location from 'expo-location';
 import { Camera } from 'expo-camera';
 import * as MediaLibrary from 'expo-media-library';
-import * as Contacts from 'expo-contacts';
 import { Audio } from 'expo-av';
 import * as IntentLauncher from 'expo-intent-launcher';
 import * as SecureStore from 'expo-secure-store';
@@ -30,7 +28,6 @@ export interface PermissionStatus {
   camera: 'granted' | 'denied' | 'undetermined';
   microphone: 'granted' | 'denied' | 'undetermined';
   storage: 'granted' | 'denied' | 'undetermined';
-  contacts: 'granted' | 'denied' | 'undetermined';
   screenPinning: 'enabled' | 'disabled' | 'unknown';
 }
 
@@ -53,7 +50,6 @@ export async function checkAllPermissions(): Promise<PermissionStatus> {
     camera: 'undetermined',
     microphone: 'undetermined',
     storage: 'undetermined',
-    contacts: 'undetermined',
     screenPinning: 'unknown',
   };
 
@@ -73,10 +69,6 @@ export async function checkAllPermissions(): Promise<PermissionStatus> {
     // Storage/Media Library
     const storageStatus = await MediaLibrary.getPermissionsAsync();
     status.storage = storageStatus.granted ? 'granted' : storageStatus.canAskAgain ? 'undetermined' : 'denied';
-
-    // Contacts
-    const contactsStatus = await Contacts.getPermissionsAsync();
-    status.contacts = contactsStatus.granted ? 'granted' : contactsStatus.canAskAgain ? 'undetermined' : 'denied';
 
     // Screen Pinning - use SecureStore for local storage
     const pinningConfirmed = await SecureStore.getItemAsync(SCREEN_PINNING_CONFIRMED_KEY);
@@ -157,23 +149,6 @@ export async function requestStoragePermission(): Promise<PermissionResult> {
 }
 
 /**
- * Request contacts permission
- */
-export async function requestContactsPermission(): Promise<PermissionResult> {
-  try {
-    const { status, canAskAgain } = await Contacts.requestPermissionsAsync();
-    return {
-      permission: 'contacts',
-      granted: status === 'granted',
-      canAskAgain,
-    };
-  } catch (error) {
-    console.error('Contacts permission error:', error);
-    return { permission: 'contacts', granted: false };
-  }
-}
-
-/**
  * Request all permissions in sequence
  */
 export async function requestAllPermissions(): Promise<PermissionStatus> {
@@ -181,7 +156,6 @@ export async function requestAllPermissions(): Promise<PermissionStatus> {
   await requestStoragePermission();
   await requestCameraPermission();
   await requestMicrophonePermission();
-  await requestContactsPermission();
   return await checkAllPermissions();
 }
 
@@ -257,7 +231,6 @@ export function getGrantedCount(status: PermissionStatus): number {
   if (status.camera === 'granted') count++;
   if (status.microphone === 'granted') count++;
   if (status.storage === 'granted') count++;
-  if (status.contacts === 'granted') count++;
   if (status.screenPinning === 'enabled') count++;
   return count;
 }
@@ -318,7 +291,6 @@ export interface SecureModePermissionCheck {
     camera: boolean;
     location: boolean;
     microphone: boolean;
-    contacts: boolean;
   };
   proFeatures: {
     cameraForCopPhotos: boolean;
@@ -345,7 +317,6 @@ export async function checkSecureModePermissions(): Promise<SecureModePermission
     camera: status.camera === 'granted', // For document scanning
     location: status.location === 'granted', // For police interaction tracking
     microphone: status.microphone === 'granted', // For audio recording
-    contacts: status.contacts === 'granted', // For emergency contacts
   };
   
   // Pro feature permissions (subset of optional)
@@ -390,7 +361,6 @@ export default {
   requestCameraPermission,
   requestMicrophonePermission,
   requestStoragePermission,
-  requestContactsPermission,
   openAppSettings,
   openScreenPinningSettings,
   confirmScreenPinning,
