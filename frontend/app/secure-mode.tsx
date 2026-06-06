@@ -24,7 +24,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { loadDocuments } from '../utils/secureDocumentStorage';
 import ScreenPinning from '../modules/screen-pinning';
 
-import { Audio } from 'expo-av';
 
 const { width } = Dimensions.get('window');
 
