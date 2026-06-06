@@ -156,6 +156,7 @@ export default function OfficerLogin() {
         latitude: location?.latitude || null,
         longitude: location?.longitude || null,
         integrity_hash: '',
+        documents_viewed: [],
       };
       const existingLogs = await AsyncStorage.getItem('access_logs');
       const logs = existingLogs ? JSON.parse(existingLogs) : [];
