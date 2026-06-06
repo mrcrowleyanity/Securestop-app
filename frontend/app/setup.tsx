@@ -89,12 +89,20 @@ export default function Setup() {
       // Read credentials from secure storage
       const localEmail = await SecureStore.getItemAsync('user_email');
       const localPin = await SecureStore.getItemAsync('user_pin');
-
-      if (localEmail === email.trim().toLowerCase() && localPin === pin) {
-        await initVault(); // Eagerly create the secure storage folder
-          router.replace('/home');
+      if (!localEmail || !localPin) {
+        Alert.alert(
+          'No Account Found',
+          'No account exists on this device. Would you like to create one?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Create Account', onPress: () => { setMode('register'); setStep(1); } }
+          ]
+        );
+      } else if (localEmail === email.trim().toLowerCase() && localPin === pin) {
+        await initVault();
+        router.replace('/home');
       } else {
-        Alert.alert('Error', 'Invalid credentials or no account found on this device.');
+        Alert.alert('Error', 'Incorrect email or PIN. Please try again.');
       }
     } catch (error) {
       console.error('Login error:', error);
