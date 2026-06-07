@@ -5,7 +5,7 @@
  * and write a timestamped privilege-gap marker (never call content).
  */
 import { Audio } from 'expo-av';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { saveDocument } from './secureDocumentStorage';
 import { checkRecordingCompliance, RecordingLawResult } from './recordingLaws';
 
